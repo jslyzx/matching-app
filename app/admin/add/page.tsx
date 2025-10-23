@@ -4,13 +4,16 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Trash2, ArrowLeft } from "lucide-react"
+import { Plus, Trash2, ArrowLeft, Check } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { MathFormula } from "@/components/math-formula"
 
 interface QuestionItem {
   content: string
@@ -19,14 +22,28 @@ interface QuestionItem {
   matchIndex?: number
 }
 
+interface ChoiceOption {
+  content: string
+  is_correct: boolean
+  display_order: number
+}
+
 export default function AddQuestionPage() {
   const router = useRouter()
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [difficultyLevel, setDifficultyLevel] = useState("easy")
   const [isActive, setIsActive] = useState(true)
+  const [questionType, setQuestionType] = useState<"matching" | "choice">("matching")
   const [leftItems, setLeftItems] = useState<QuestionItem[]>([{ content: "", side: "left", display_order: 1 }])
   const [rightItems, setRightItems] = useState<QuestionItem[]>([{ content: "", side: "right", display_order: 1 }])
+  const [choiceOptions, setChoiceOptions] = useState<ChoiceOption[]>([
+    { content: "", is_correct: false, display_order: 1 },
+    { content: "", is_correct: false, display_order: 2 },
+    { content: "", is_correct: false, display_order: 3 },
+    { content: "", is_correct: false, display_order: 4 }
+  ])
+  const [previewFormula, setPreviewFormula] = useState("")
   const [loading, setLoading] = useState(false)
 
   const addLeftItem = () => {
@@ -35,6 +52,13 @@ export default function AddQuestionPage() {
 
   const addRightItem = () => {
     setRightItems([...rightItems, { content: "", side: "right", display_order: rightItems.length + 1 }])
+  }
+
+  const addChoiceOption = () => {
+    setChoiceOptions([
+      ...choiceOptions, 
+      { content: "", is_correct: false, display_order: choiceOptions.length + 1 }
+    ])
   }
 
   const removeLeftItem = (index: number) => {
@@ -46,6 +70,12 @@ export default function AddQuestionPage() {
   const removeRightItem = (index: number) => {
     if (rightItems.length > 1) {
       setRightItems(rightItems.filter((_, i) => i !== index))
+    }
+  }
+
+  const removeChoiceOption = (index: number) => {
+    if (choiceOptions.length > 2) {
+      setChoiceOptions(choiceOptions.filter((_, i) => i !== index))
     }
   }
 
@@ -61,6 +91,22 @@ export default function AddQuestionPage() {
     setRightItems(updated)
   }
 
+  const updateChoiceOption = (index: number, field: string, value: string | boolean) => {
+    const updated = [...choiceOptions]
+    updated[index] = { ...updated[index], [field]: value }
+    setChoiceOptions(updated)
+  }
+
+  const toggleCorrectOption = (index: number) => {
+    const updated = [...choiceOptions]
+    updated[index].is_correct = !updated[index].is_correct
+    setChoiceOptions(updated)
+  }
+
+  const handleFormulaPreview = (formula: string) => {
+    setPreviewFormula(formula)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -69,33 +115,63 @@ export default function AddQuestionPage() {
       return
     }
 
-    if (leftItems.some((item) => !item.content) || rightItems.some((item) => !item.content)) {
-      alert("请填写所有匹配项内容")
-      return
-    }
+    if (questionType === "matching") {
+      if (leftItems.some((item) => !item.content) || rightItems.some((item) => !item.content)) {
+        alert("请填写所有匹配项内容")
+        return
+      }
 
-    if (leftItems.some((item) => item.matchIndex === undefined)) {
-      alert("请为所有左侧项设置匹配关系")
-      return
+      if (leftItems.some((item) => item.matchIndex === undefined)) {
+        alert("请为所有左侧项设置匹配关系")
+        return
+      }
+    } else {
+      if (choiceOptions.some((option) => !option.content)) {
+        alert("请填写所有选项内容")
+        return
+      }
+
+      if (!choiceOptions.some((option) => option.is_correct)) {
+        alert("请至少选择一个正确答案")
+        return
+      }
     }
 
     setLoading(true)
 
     try {
-      const items = [...leftItems, ...rightItems]
-      const response = await fetch("/api/admin/questions/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          description,
-          difficulty_level: difficultyLevel,
-          is_active: isActive,
-          items,
-        }),
-      })
+      if (questionType === "matching") {
+        const items = [...leftItems, ...rightItems]
+        const response = await fetch("/api/admin/questions/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title,
+            description,
+            difficulty_level: difficultyLevel,
+            is_active: isActive,
+            type: "matching",
+            items,
+          }),
+        })
 
-      if (!response.ok) throw new Error("Failed to create question")
+        if (!response.ok) throw new Error("Failed to create question")
+      } else {
+        const response = await fetch("/api/admin/questions/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title,
+            description,
+            difficulty_level: difficultyLevel,
+            is_active: isActive,
+            type: "choice",
+            options: choiceOptions,
+          }),
+        })
+
+        if (!response.ok) throw new Error("Failed to create question")
+      }
 
       alert("题目创建成功")
       router.push("/admin")
@@ -148,7 +224,7 @@ export default function AddQuestionPage() {
                   <Label htmlFor="difficulty">难度等级</Label>
                   <Select value={difficultyLevel} onValueChange={setDifficultyLevel}>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="选择难度" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="easy">简单</SelectItem>
@@ -159,89 +235,166 @@ export default function AddQuestionPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="status">状态</Label>
-                  <Select value={isActive ? "active" : "inactive"} onValueChange={(v) => setIsActive(v === "active")}>
+                  <Label htmlFor="question-type">题目类型</Label>
+                  <Select value={questionType} onValueChange={(value: "matching" | "choice") => setQuestionType(value)}>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="选择题目类型" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="active">启用</SelectItem>
-                      <SelectItem value="inactive">禁用</SelectItem>
+                      <SelectItem value="matching">连线题</SelectItem>
+                      <SelectItem value="choice">选择题</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <Label>左侧匹配项</Label>
-                    <Button type="button" size="sm" onClick={addLeftItem}>
-                      <Plus className="w-4 h-4 mr-1" />
-                      添加
-                    </Button>
-                  </div>
-                  {leftItems.map((item, index) => (
-                    <div key={index} className="space-y-2 p-4 border rounded-lg">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">项目 {index + 1}</span>
-                        {leftItems.length > 1 && (
-                          <Button type="button" variant="ghost" size="sm" onClick={() => removeLeftItem(index)}>
-                            <Trash2 className="w-4 h-4 text-red-500" />
-                          </Button>
-                        )}
-                      </div>
-                      <Input
-                        value={item.content}
-                        onChange={(e) => updateLeftItem(index, "content", e.target.value)}
-                        placeholder="内容（支持emoji）"
-                      />
-                      <Select
-                        value={item.matchIndex?.toString()}
-                        onValueChange={(v) => updateLeftItem(index, "matchIndex", Number.parseInt(v))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="选择匹配的右侧项" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {rightItems.map((_, i) => (
-                            <SelectItem key={i} value={(i + 1).toString()}>
-                              右侧项目 {i + 1}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <Label>右侧匹配项</Label>
-                    <Button type="button" size="sm" onClick={addRightItem}>
-                      <Plus className="w-4 h-4 mr-1" />
-                      添加
-                    </Button>
-                  </div>
-                  {rightItems.map((item, index) => (
-                    <div key={index} className="space-y-2 p-4 border rounded-lg">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">项目 {index + 1}</span>
-                        {rightItems.length > 1 && (
-                          <Button type="button" variant="ghost" size="sm" onClick={() => removeRightItem(index)}>
-                            <Trash2 className="w-4 h-4 text-red-500" />
-                          </Button>
-                        )}
-                      </div>
-                      <Input
-                        value={item.content}
-                        onChange={(e) => updateRightItem(index, e.target.value)}
-                        placeholder="内容（支持emoji）"
-                      />
-                    </div>
-                  ))}
-                </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox id="is-active" checked={isActive} onCheckedChange={(checked) => setIsActive(!!checked)} />
+                <Label htmlFor="is-active">启用题目</Label>
               </div>
+
+              {questionType === "matching" ? (
+                <div className="grid grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium">左侧项目</h3>
+                      <Button type="button" size="sm" onClick={addLeftItem}>
+                        <Plus className="w-4 h-4 mr-1" />
+                        添加
+                      </Button>
+                    </div>
+
+                    {leftItems.map((item, index) => (
+                      <div key={`left-${index}`} className="flex items-center gap-2">
+                        <Input
+                          value={item.content}
+                          onChange={(e) => updateLeftItem(index, "content", e.target.value)}
+                          placeholder={`左侧项 ${index + 1}`}
+                          className="flex-1"
+                        />
+                        <Select
+                          value={item.matchIndex !== undefined ? String(item.matchIndex) : ""}
+                          onValueChange={(value) => updateLeftItem(index, "matchIndex", parseInt(value))}
+                        >
+                          <SelectTrigger className="w-24">
+                            <SelectValue placeholder="匹配" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {rightItems.map((_, i) => (
+                              <SelectItem key={`match-${i}`} value={String(i)}>
+                                {i + 1}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => removeLeftItem(index)}
+                          disabled={leftItems.length <= 1}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium">右侧项目</h3>
+                      <Button type="button" size="sm" onClick={addRightItem}>
+                        <Plus className="w-4 h-4 mr-1" />
+                        添加
+                      </Button>
+                    </div>
+
+                    {rightItems.map((item, index) => (
+                      <div key={`right-${index}`} className="flex items-center gap-2">
+                        <Input
+                          value={item.content}
+                          onChange={(e) => updateRightItem(index, e.target.value)}
+                          placeholder={`右侧项 ${index + 1}`}
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => removeRightItem(index)}
+                          disabled={rightItems.length <= 1}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium">题目内容（支持数学公式）</h3>
+                    </div>
+                    <div className="space-y-2">
+                      <Textarea
+                        value={description}
+                        onChange={(e) => {
+                          setDescription(e.target.value)
+                          handleFormulaPreview(e.target.value)
+                        }}
+                        placeholder="输入题目内容，使用 \( \) 包裹行内公式，使用 \[ \] 包裹块级公式"
+                        className="min-h-[100px]"
+                      />
+                      {previewFormula && (
+                        <div className="rounded-md border p-4 bg-slate-50">
+                          <p className="text-sm text-slate-500 mb-2">预览：</p>
+                          <MathFormula formula={previewFormula} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium">选项</h3>
+                      <Button type="button" size="sm" onClick={addChoiceOption}>
+                        <Plus className="w-4 h-4 mr-1" />
+                        添加选项
+                      </Button>
+                    </div>
+
+                    {choiceOptions.map((option, index) => (
+                      <div key={`option-${index}`} className="flex items-center gap-2">
+                        <div 
+                          className={`flex items-center justify-center w-8 h-8 rounded-full border ${
+                            option.is_correct ? "bg-green-100 border-green-500" : "bg-slate-100"
+                          }`}
+                          onClick={() => toggleCorrectOption(index)}
+                        >
+                          {option.is_correct && <Check className="w-4 h-4 text-green-600" />}
+                        </div>
+                        <Textarea
+                          value={option.content}
+                          onChange={(e) => updateChoiceOption(index, "content", e.target.value)}
+                          placeholder={`选项 ${index + 1}（支持数学公式）`}
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => removeChoiceOption(index)}
+                          disabled={choiceOptions.length <= 2}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <p className="text-sm text-slate-500">点击选项前的圆圈标记为正确答案</p>
+                  </div>
+                </div>
+              )}
 
               <div className="flex justify-end gap-3">
                 <Button type="button" variant="outline" onClick={() => router.push("/admin")}>

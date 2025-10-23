@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { MatchingGame } from "@/components/matching-game"
+import { ChoiceQuestion } from "@/components/choice-question"
 import { Button } from "@/components/ui/button"
 
 export default function Home() {
@@ -49,6 +50,7 @@ export default function Home() {
   }
 
   const isLastQuestion = currentQuestion === questions.length - 1
+  const currentQuestionData = questions[currentQuestion]
 
   if (loading) {
     return (
@@ -99,8 +101,14 @@ export default function Home() {
     <main className="min-h-screen bg-background p-4 md:p-8">
       <div className="mx-auto max-w-6xl">
         <header className="mb-8 text-center">
-          <h1 className="mb-2 font-bold text-4xl text-primary md:text-5xl">连线游戏</h1>
-          <p className="text-muted-foreground text-lg">把左边和右边相关的内容连起来吧！</p>
+          <h1 className="mb-2 font-bold text-4xl text-primary md:text-5xl">
+            {currentQuestionData.type === 'matching' ? '连线游戏' : '选择题'}
+          </h1>
+          <p className="text-muted-foreground text-lg">
+            {currentQuestionData.type === 'matching' 
+              ? '把左边和右边相关的内容连起来吧！' 
+              : '选择正确的答案！'}
+          </p>
           <div className="mt-4 flex items-center justify-center gap-4">
             <div className="rounded-full bg-secondary px-6 py-2 font-semibold text-secondary-foreground">
               第 {currentQuestion + 1} 题 / 共 {questions.length} 题
@@ -109,11 +117,19 @@ export default function Home() {
           </div>
         </header>
 
-        <MatchingGame
-          key={questions[currentQuestion].id}
-          question={questions[currentQuestion]}
-          onComplete={handleComplete}
-        />
+        {currentQuestionData.type === 'matching' ? (
+          <MatchingGame
+            key={`matching-${currentQuestionData.id}`}
+            question={currentQuestionData}
+            onComplete={handleComplete}
+          />
+        ) : (
+          <ChoiceQuestion
+            key={`choice-${currentQuestionData.id}`}
+            question={currentQuestionData}
+            onComplete={handleComplete}
+          />
+        )}
 
         <div className="mt-8 flex justify-center gap-4">
           {!isLastQuestion ? (

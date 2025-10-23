@@ -10,7 +10,9 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Trash2, ArrowLeft } from "lucide-react"
+import { Plus, Trash2, ArrowLeft, Check } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { MathFormula } from "@/components/math-formula"
 
 interface QuestionItem {
   id?: number
@@ -21,6 +23,13 @@ interface QuestionItem {
   match_item_id?: number
 }
 
+interface ChoiceOption {
+  id?: number
+  content: string
+  is_correct: boolean
+  display_order: number
+}
+
 export default function EditQuestionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
@@ -28,8 +37,11 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
   const [description, setDescription] = useState("")
   const [difficultyLevel, setDifficultyLevel] = useState("easy")
   const [isActive, setIsActive] = useState(true)
+  const [questionType, setQuestionType] = useState<"matching" | "choice">("matching")
   const [leftItems, setLeftItems] = useState<QuestionItem[]>([])
   const [rightItems, setRightItems] = useState<QuestionItem[]>([])
+  const [choiceOptions, setChoiceOptions] = useState<ChoiceOption[]>([])
+  const [previewFormula, setPreviewFormula] = useState("")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -47,18 +59,35 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
       setDescription(data.question.description)
       setDifficultyLevel(data.question.difficulty_level)
       setIsActive(data.question.is_active === 1)
+      setQuestionType(data.question.question_type || "matching")
 
-      const left = data.items.filter((item: any) => item.side === "left")
-      const right = data.items.filter((item: any) => item.side === "right")
+      if (data.question.question_type === "choice") {
+        // 处理选择题选项
+        if (data.options && Array.isArray(data.options)) {
+          setChoiceOptions(data.options.map((option: any) => ({
+            id: option.id,
+            content: option.content,
+            is_correct: option.is_correct === 1,
+            display_order: option.display_order
+          })))
+        } else {
+          // 如果没有选项数据，至少添加一个空选项
+          setChoiceOptions([{ content: "", is_correct: false, display_order: 1 }])
+        }
+      } else {
+        // 处理连线题
+        const left = data.items.filter((item: any) => item.side === "left")
+        const right = data.items.filter((item: any) => item.side === "right")
 
-      // Set match indices for left items
-      const leftWithMatch = left.map((item: any) => {
-        const matchIndex = right.findIndex((r: any) => r.id === item.match_item_id) + 1
-        return { ...item, matchIndex: matchIndex || undefined }
-      })
+        // Set match indices for left items
+        const leftWithMatch = left.map((item: any) => {
+          const matchIndex = right.findIndex((r: any) => r.id === item.match_item_id)
+          return { ...item, matchIndex: matchIndex !== -1 ? matchIndex : undefined }
+        })
 
-      setLeftItems(leftWithMatch)
-      setRightItems(right)
+        setLeftItems(leftWithMatch)
+        setRightItems(right)
+      }
     } catch (error) {
       console.error(error)
       alert("加载失败")
@@ -76,6 +105,13 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
     setRightItems([...rightItems, { content: "", side: "right", display_order: rightItems.length + 1 }])
   }
 
+  const addChoiceOption = () => {
+    setChoiceOptions([
+      ...choiceOptions, 
+      { content: "", is_correct: false, display_order: choiceOptions.length + 1 }
+    ])
+  }
+
   const removeLeftItem = (index: number) => {
     if (leftItems.length > 1) {
       setLeftItems(leftItems.filter((_, i) => i !== index))
@@ -85,6 +121,12 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
   const removeRightItem = (index: number) => {
     if (rightItems.length > 1) {
       setRightItems(rightItems.filter((_, i) => i !== index))
+    }
+  }
+
+  const removeChoiceOption = (index: number) => {
+    if (choiceOptions.length > 2) {
+      setChoiceOptions(choiceOptions.filter((_, i) => i !== index))
     }
   }
 
@@ -100,6 +142,22 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
     setRightItems(updated)
   }
 
+  const updateChoiceOption = (index: number, field: string, value: string | boolean) => {
+    const updated = [...choiceOptions]
+    updated[index] = { ...updated[index], [field]: value }
+    setChoiceOptions(updated)
+  }
+
+  const toggleCorrectOption = (index: number) => {
+    const updated = [...choiceOptions]
+    updated[index].is_correct = !updated[index].is_correct
+    setChoiceOptions(updated)
+  }
+
+  const handleFormulaPreview = (formula: string) => {
+    setPreviewFormula(formula)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -108,30 +166,57 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
       return
     }
 
-    if (leftItems.some((item) => !item.content) || rightItems.some((item) => !item.content)) {
-      alert("请填写所有匹配项内容")
-      return
-    }
+    // 根据题目类型进行不同的验证和提交
+    if (questionType === "matching") {
+      if (leftItems.some((item) => !item.content) || rightItems.some((item) => !item.content)) {
+        alert("请填写所有匹配项内容")
+        return
+      }
 
-    if (leftItems.some((item) => item.matchIndex === undefined)) {
-      alert("请为所有左侧项设置匹配关系")
-      return
+      if (leftItems.some((item) => item.matchIndex === undefined)) {
+        alert("请为所有左侧项设置匹配关系")
+        return
+      }
+    } else if (questionType === "choice") {
+      if (choiceOptions.length === 0) {
+        alert("请添加至少一个选项")
+        return
+      }
+
+      if (choiceOptions.some((option) => !option.content)) {
+        alert("请填写所有选项内容")
+        return
+      }
+
+      if (!choiceOptions.some((option) => option.is_correct)) {
+        alert("请至少选择一个正确答案")
+        return
+      }
     }
 
     setSaving(true)
 
     try {
-      const items = [...leftItems, ...rightItems]
+      let requestBody = {
+        title,
+        description,
+        difficulty_level: difficultyLevel,
+        is_active: isActive,
+        question_type: questionType,
+      }
+
+      // 根据题目类型添加不同的数据
+      if (questionType === "matching") {
+        const items = [...leftItems, ...rightItems]
+        requestBody = { ...requestBody, items }
+      } else if (questionType === "choice") {
+        requestBody = { ...requestBody, options: choiceOptions }
+      }
+
       const response = await fetch(`/api/admin/questions/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          description,
-          difficulty_level: difficultyLevel,
-          is_active: isActive,
-          items,
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       if (!response.ok) throw new Error("Failed to update question")
@@ -191,7 +276,20 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="questionType">题目类型</Label>
+                  <Select value={questionType} onValueChange={setQuestionType}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="matching">匹配题</SelectItem>
+                      <SelectItem value="choice">选择题</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
                 <div className="space-y-2">
                   <Label htmlFor="difficulty">难度等级</Label>
                   <Select value={difficultyLevel} onValueChange={setDifficultyLevel}>
@@ -220,76 +318,138 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <Label>左侧匹配项</Label>
-                    <Button type="button" size="sm" onClick={addLeftItem}>
-                      <Plus className="w-4 h-4 mr-1" />
-                      添加
-                    </Button>
-                  </div>
-                  {leftItems.map((item, index) => (
-                    <div key={index} className="space-y-2 p-4 border rounded-lg">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">项目 {index + 1}</span>
-                        {leftItems.length > 1 && (
-                          <Button type="button" variant="ghost" size="sm" onClick={() => removeLeftItem(index)}>
-                            <Trash2 className="w-4 h-4 text-red-500" />
-                          </Button>
-                        )}
-                      </div>
-                      <Input
-                        value={item.content}
-                        onChange={(e) => updateLeftItem(index, "content", e.target.value)}
-                        placeholder="内容（支持emoji）"
-                      />
-                      <Select
-                        value={item.matchIndex?.toString()}
-                        onValueChange={(v) => updateLeftItem(index, "matchIndex", Number.parseInt(v))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="选择匹配的右侧项" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {rightItems.map((_, i) => (
-                            <SelectItem key={i} value={(i + 1).toString()}>
-                              右侧项目 {i + 1}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+              {questionType === "matching" ? (
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <Label>左侧匹配项</Label>
+                      <Button type="button" size="sm" onClick={addLeftItem}>
+                        <Plus className="w-4 h-4 mr-1" />
+                        添加
+                      </Button>
                     </div>
-                  ))}
-                </div>
+                    {leftItems.map((item, index) => (
+                      <div key={index} className="space-y-2 p-4 border rounded-lg">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium">项目 {index + 1}</span>
+                          {leftItems.length > 1 && (
+                            <Button type="button" variant="ghost" size="sm" onClick={() => removeLeftItem(index)}>
+                              <Trash2 className="w-4 h-4 text-red-500" />
+                            </Button>
+                          )}
+                        </div>
+                        <Input
+                          value={item.content}
+                          onChange={(e) => updateLeftItem(index, "content", e.target.value)}
+                          placeholder="内容（支持emoji）"
+                        />
+                        <Select
+                          value={item.matchIndex?.toString()}
+                          onValueChange={(v) => updateLeftItem(index, "matchIndex", Number.parseInt(v))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="选择匹配的右侧项" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {rightItems.map((_, i) => (
+                              <SelectItem key={i} value={(i + 1).toString()}>
+                                右侧项目 {i + 1}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ))}
+                  </div>
 
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <Label>右侧匹配项</Label>
+                      <Button type="button" size="sm" onClick={addRightItem}>
+                        <Plus className="w-4 h-4 mr-1" />
+                        添加
+                      </Button>
+                    </div>
+                    {rightItems.map((item, index) => (
+                      <div key={index} className="space-y-2 p-4 border rounded-lg">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium">项目 {index + 1}</span>
+                          {rightItems.length > 1 && (
+                            <Button type="button" variant="ghost" size="sm" onClick={() => removeRightItem(index)}>
+                              <Trash2 className="w-4 h-4 text-red-500" />
+                            </Button>
+                          )}
+                        </div>
+                        <Input
+                          value={item.content}
+                          onChange={(e) => updateRightItem(index, e.target.value)}
+                          placeholder="内容（支持emoji）"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <Label>右侧匹配项</Label>
-                    <Button type="button" size="sm" onClick={addRightItem}>
+                    <Label>选项</Label>
+                    <Button type="button" size="sm" onClick={addChoiceOption}>
                       <Plus className="w-4 h-4 mr-1" />
-                      添加
+                      添加选项
                     </Button>
                   </div>
-                  {rightItems.map((item, index) => (
-                    <div key={index} className="space-y-2 p-4 border rounded-lg">
+                  
+                  {choiceOptions.map((option, index) => (
+                    <div key={index} className="space-y-3 p-4 border rounded-lg">
                       <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">项目 {index + 1}</span>
-                        {rightItems.length > 1 && (
-                          <Button type="button" variant="ghost" size="sm" onClick={() => removeRightItem(index)}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">选项 {index + 1}</span>
+                          <div className="flex items-center">
+                            <Checkbox 
+                              id={`correct-${index}`}
+                              checked={option.is_correct}
+                              onCheckedChange={() => toggleCorrectOption(index)}
+                            />
+                            <Label htmlFor={`correct-${index}`} className="ml-2 text-sm">
+                              正确答案
+                            </Label>
+                          </div>
+                        </div>
+                        {choiceOptions.length > 1 && (
+                          <Button type="button" variant="ghost" size="sm" onClick={() => removeChoiceOption(index)}>
                             <Trash2 className="w-4 h-4 text-red-500" />
                           </Button>
                         )}
                       </div>
-                      <Input
-                        value={item.content}
-                        onChange={(e) => updateRightItem(index, e.target.value)}
-                        placeholder="内容（支持emoji）"
+                      
+                      <Textarea
+                        value={option.content}
+                        onChange={(e) => updateChoiceOption(index, "content", e.target.value)}
+                        placeholder="选项内容（支持数学公式，使用 \( \) 或 \[ \] 包裹）"
+                        className="min-h-[80px]"
                       />
+                      
+                      <div className="flex justify-end">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleFormulaPreview(option.content)}
+                        >
+                          预览公式
+                        </Button>
+                      </div>
                     </div>
                   ))}
+                  
+                  {previewFormula && (
+                    <div className="mt-4 p-4 border rounded-lg bg-slate-50">
+                      <div className="mb-2 font-medium">公式预览：</div>
+                      <MathFormula formula={previewFormula} />
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
 
               <div className="flex justify-end gap-3">
                 <Button type="button" variant="outline" onClick={() => router.push("/admin")}>
