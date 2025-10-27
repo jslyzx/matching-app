@@ -54,6 +54,22 @@ export default function AdminPage() {
     }
   }
 
+  const handleToggleStatus = async (id: number, currentStatus: number) => {
+    const newStatus = !currentStatus
+    try {
+      const response = await fetch(`/api/admin/questions/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: newStatus }),
+      })
+      if (!response.ok) throw new Error("Failed to update status")
+      fetchQuestions()
+    } catch (err) {
+      alert("更新状态失败")
+      console.error(err)
+    }
+  }
+
   const handleExport = async () => {
     try {
       const response = await fetch("/api/admin/export")
@@ -156,6 +172,14 @@ export default function AdminPage() {
                         onClick={() => (window.location.href = `/admin/edit/${question.id}`)}
                       >
                         <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button 
+                        variant={question.is_active ? "ghost" : "default"}
+                        size="sm" 
+                        onClick={() => handleToggleStatus(question.id, question.is_active)}
+                        className={question.is_active ? "text-amber-600" : "text-green-600"}
+                      >
+                        {question.is_active ? "停用" : "启用"}
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => handleDelete(question.id)}>
                         <Trash2 className="w-4 h-4 text-red-500" />

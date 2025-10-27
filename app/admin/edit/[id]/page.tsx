@@ -55,42 +55,63 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
       if (!response.ok) throw new Error("Failed to fetch")
 
       const data = await response.json()
-      setTitle(data.question.title)
-      setDescription(data.question.description)
-      setDifficultyLevel(data.question.difficulty_level)
-      setIsActive(data.question.is_active === 1)
+      console.log("Fetched question data:", data)
+      
+      // 基本信息初始化
+      setTitle(data.question.title || "")
+      setDescription(data.question.description || "")
+      setDifficultyLevel(data.question.difficulty_level || "easy")
+      setIsActive(data.question.is_active === 1 || false)
       setQuestionType(data.question.question_type || "matching")
 
       if (data.question.question_type === "choice") {
         // 处理选择题选项
-        if (data.options && Array.isArray(data.options)) {
-          setChoiceOptions(data.options.map((option: any) => ({
+        if (data.options && Array.isArray(data.options) && data.options.length > 0) {
+          // 确保选项按顺序排序
+          const sortedOptions = [...data.options].sort((a: any, b: any) => 
+            (a.display_order || 0) - (b.display_order || 0)
+          )
+          
+          setChoiceOptions(sortedOptions.map((option: any) => ({
             id: option.id,
-            content: option.content,
-            is_correct: option.is_correct === 1,
-            display_order: option.display_order
+            content: option.content || "",
+            is_correct: option.is_correct === 1 || option.is_correct === true,
+            display_order: option.display_order || 0
           })))
         } else {
-          // 如果没有选项数据，至少添加一个空选项
-          setChoiceOptions([{ content: "", is_correct: false, display_order: 1 }])
+          // 如果没有选项数据，添加默认的4个选项
+          setChoiceOptions([
+            { content: "", is_correct: false, display_order: 1 },
+            { content: "", is_correct: false, display_order: 2 },
+            { content: "", is_correct: false, display_order: 3 },
+            { content: "", is_correct: false, display_order: 4 }
+          ])
         }
+        // 清空连线题数据
+        setLeftItems([])
+        setRightItems([])
       } else {
         // 处理连线题
-        const left = data.items.filter((item: any) => item.side === "left")
-        const right = data.items.filter((item: any) => item.side === "right")
+        const left = (data.items || []).filter((item: any) => item && item.side === "left")
+        const right = (data.items || []).filter((item: any) => item && item.side === "right")
 
         // Set match indices for left items
         const leftWithMatch = left.map((item: any) => {
-          const matchIndex = right.findIndex((r: any) => r.id === item.match_item_id)
-          return { ...item, matchIndex: matchIndex !== -1 ? matchIndex : undefined }
+          const matchIndex = right.findIndex((r: any) => r && r.id === item.match_item_id)
+          return {
+            ...item,
+            matchIndex: matchIndex !== -1 ? matchIndex + 1 : undefined // +1 因为UI中的选项是从1开始计数的
+          }
         })
 
-        setLeftItems(leftWithMatch)
-        setRightItems(right)
+        setLeftItems(leftWithMatch.length > 0 ? leftWithMatch : [{ content: "", side: "left", display_order: 1 }])
+        setRightItems(right.length > 0 ? right : [{ content: "", side: "right", display_order: 1 }])
+        // 清空选择题数据
+        setChoiceOptions([])
       }
     } catch (error) {
-      console.error(error)
-      alert("加载失败")
+      console.error("Error fetching question:", error)
+      alert("加载失败，请重试")
       router.push("/admin")
     } finally {
       setLoading(false)
@@ -344,7 +365,7 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
                           placeholder="内容（支持emoji）"
                         />
                         <Select
-                          value={item.matchIndex?.toString()}
+                          value={item.matchIndex?.toString() || ""}
                           onValueChange={(v) => updateLeftItem(index, "matchIndex", Number.parseInt(v))}
                         >
                           <SelectTrigger>
