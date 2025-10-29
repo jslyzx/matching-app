@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Card } from "@/components/ui/card"
+import { renderMathContent } from "@/components/math-formula"
 import { cn } from "@/lib/utils"
 
 interface Item {
@@ -130,7 +131,9 @@ export function MatchingGame({ question, onComplete }: MatchingGameProps) {
 
   return (
     <div className="relative">
-      <h2 className="mb-6 text-center font-bold text-2xl text-foreground md:text-3xl">{question.title}</h2>
+      <h2 className="mb-6 text-center font-bold text-2xl text-foreground md:text-3xl">
+        {renderMathContent(question.title, "matching-title")}
+      </h2>
 
       <div className="relative grid grid-cols-[1fr_auto_1fr] gap-4 md:gap-8">
         {/* 左列 */}
@@ -148,7 +151,7 @@ export function MatchingGame({ question, onComplete }: MatchingGameProps) {
                 isConnected(item.id) && "border-accent bg-accent/10",
               )}
             >
-              {item.text}
+              {renderMathContent(item.text, `matching-left-${item.id}`)}
             </Card>
           ))}
         </div>
@@ -172,7 +175,7 @@ export function MatchingGame({ question, onComplete }: MatchingGameProps) {
                 isConnected(item.id) && "border-accent bg-accent/10",
               )}
             >
-              {item.text}
+              {renderMathContent(item.text, `matching-right-${item.id}`)}
             </Card>
           ))}
         </div>

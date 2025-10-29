@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, Trash2, ArrowLeft, Check } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
-import { MathFormula } from "@/components/math-formula"
+import { renderMathContent } from "@/components/math-formula"
 
 interface QuestionItem {
   content: string
@@ -349,7 +349,9 @@ export default function AddQuestionPage() {
                       {previewFormula && (
                         <div className="rounded-md border p-4 bg-slate-50">
                           <p className="text-sm text-slate-500 mb-2">预览：</p>
-                          <MathFormula formula={previewFormula} />
+                          <div className="text-base leading-relaxed">
+                            {renderMathContent(previewFormula, "add-preview")}
+                          </div>
                         </div>
                       )}
                     </div>
