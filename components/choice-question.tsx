@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { MathFormula } from "@/components/math-formula"
+import { renderMathContent } from "@/components/math-formula"
 import { cn } from "@/lib/utils"
 
 interface Option {
@@ -28,6 +28,7 @@ export function ChoiceQuestion({ question, onComplete }: ChoiceQuestionProps) {
   const [selectedOptions, setSelectedOptions] = useState<string[]>([])
   const [feedback, setFeedback] = useState<"correct" | "incorrect" | null>(null)
   const [submitted, setSubmitted] = useState(false)
+
 
   const handleOptionClick = (optionId: string) => {
     if (submitted) return
@@ -68,22 +69,12 @@ export function ChoiceQuestion({ question, onComplete }: ChoiceQuestionProps) {
     <div className="relative">
       <div className="mb-6 text-center">
         <h2 className="mb-2 font-bold text-2xl text-foreground md:text-3xl">
-          {question.title.includes("\\(") || question.title.includes("\\[") ? (
-            <div className="flex flex-wrap items-center justify-center gap-1">
-              {question.title.split(/(\\[\(\[].*?\\[\)\]])/).map((part, index) => {
-                if (part.startsWith("\\(") || part.startsWith("\\[")) {
-                  const isBlock = part.startsWith("\\[")
-                  return <MathFormula key={index} formula={part} block={isBlock} />
-                }
-                return <span key={index}>{part}</span>
-              })}
-            </div>
-          ) : (
-            question.title
-          )}
+          {renderMathContent(question.title, "choice-title")}
         </h2>
         {question.description && (
-          <p className="text-muted-foreground text-lg">{question.description}</p>
+          <div className="text-muted-foreground text-lg">
+            {renderMathContent(question.description, "choice-description")}
+          </div>
         )}
       </div>
 
@@ -99,19 +90,7 @@ export function ChoiceQuestion({ question, onComplete }: ChoiceQuestionProps) {
               submitted && selectedOptions.includes(option.id) && !option.isCorrect && "border-red-500 bg-red-100"
             )}
           >
-            {option.content.includes("\\(") || option.content.includes("\\[") ? (
-              <div className="flex flex-wrap items-center justify-center gap-1">
-                {option.content.split(/(\\[\(\[].*?\\[\)\]])/).map((part, index) => {
-                  if (part.startsWith("\\(") || part.startsWith("\\[")) {
-                    const isBlock = part.startsWith("\\[")
-                    return <MathFormula key={index} formula={part} block={isBlock} />
-                  }
-                  return <span key={index}>{part}</span>
-                })}
-              </div>
-            ) : (
-              option.content
-            )}
+            {renderMathContent(option.content, `choice-option-${option.id}`)}
           </Card>
         ))}
       </div>
