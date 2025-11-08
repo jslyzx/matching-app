@@ -4,18 +4,18 @@ import { pool } from "@/lib/db"
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { title, description, difficulty_level, is_active, items } = body
+    const { title, description, difficulty_level, is_active, items, type, options } = body
 
     // Insert question
     const [result] = await pool.query(
-      "INSERT INTO questions (title, description, difficulty_level, is_active) VALUES (?, ?, ?, ?)",
-      [title, description, difficulty_level, is_active ? 1 : 0],
+      "INSERT INTO questions (title, description, difficulty_level, is_active, question_type) VALUES (?, ?, ?, ?, ?)",
+      [title, description, difficulty_level, is_active ? 1 : 0, type],
     )
 
     const questionId = (result as any).insertId
 
-    // Insert items
-    if (items && items.length > 0) {
+    // 根据题目类型处理不同的数据
+    if (type === 'matching' && items && items.length > 0) {
       const itemIds: { [key: string]: number } = {}
 
       // First pass: insert all items
@@ -31,15 +31,31 @@ export async function POST(request: Request) {
       }
 
       // Second pass: update match_item_id for left items
+      // 先获取并排序所有right项
+      const rightItems = items.filter(i => i.side === 'right').sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+      
       for (const item of items) {
         if (item.side === "left" && item.matchIndex !== undefined) {
-          const leftId = itemIds[`left-${item.display_order}`]
-          const rightId = itemIds[`right-${item.matchIndex}`]
+          // 确保matchIndex是有效的数字且在正确范围内
+          const matchIndex = Number(item.matchIndex);
+          if (!isNaN(matchIndex) && matchIndex >= 0 && matchIndex < rightItems.length) {
+            const leftId = itemIds[`left-${item.display_order}`];
+            const targetRightItem = rightItems[matchIndex];
+            const rightId = itemIds[`right-${targetRightItem.display_order}`];
 
-          if (leftId && rightId) {
-            await pool.query("UPDATE question_items SET match_item_id = ? WHERE id = ?", [rightId, leftId])
+            if (leftId && rightId) {
+              await pool.query("UPDATE question_items SET match_item_id = ? WHERE id = ?", [rightId, leftId]);
+            }
           }
         }
+      }
+    } else if (type === 'choice' && options && options.length > 0) {
+      // 处理选择题选项
+      for (const option of options) {
+        await pool.query(
+          "INSERT INTO choice_options (question_id, content, is_correct, display_order) VALUES (?, ?, ?, ?)",
+          [questionId, option.content, option.is_correct ? 1 : 0, option.display_order],
+        )
       }
     }
 

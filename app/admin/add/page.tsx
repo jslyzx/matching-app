@@ -141,7 +141,14 @@ export default function AddQuestionPage() {
 
     try {
       if (questionType === "matching") {
-        const items = [...leftItems, ...rightItems]
+        // 处理左侧项目，将matchIndex减1
+        // 因为UI中显示和选择的是1、2、3，但右侧项数组索引是0、1、2
+        const adjustedLeftItems = leftItems.map(item => ({
+          ...item,
+          matchIndex: item.matchIndex !== undefined ? item.matchIndex - 1 : undefined
+        }))
+        
+        const items = [...adjustedLeftItems, ...rightItems]
         const response = await fetch("/api/admin/questions/create", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -281,7 +288,7 @@ export default function AddQuestionPage() {
                           </SelectTrigger>
                           <SelectContent>
                             {rightItems.map((_, i) => (
-                              <SelectItem key={`match-${i}`} value={String(i)}>
+                              <SelectItem key={`match-${i}`} value={String(i + 1)}>
                                 {i + 1}
                               </SelectItem>
                             ))}

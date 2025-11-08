@@ -228,7 +228,14 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
 
       // 根据题目类型添加不同的数据
       if (questionType === "matching") {
-        const items = [...leftItems, ...rightItems]
+        // 处理左侧项目，将matchIndex减1
+        // 因为UI中显示和选择的是1、2、3，但右侧项数组索引是0、1、2
+        const adjustedLeftItems = leftItems.map(item => ({
+          ...item,
+          matchIndex: item.matchIndex !== undefined ? item.matchIndex - 1 : undefined
+        }))
+        
+        const items = [...adjustedLeftItems, ...rightItems]
         requestBody = { ...requestBody, items }
       } else if (questionType === "choice") {
         requestBody = { ...requestBody, options: choiceOptions }
@@ -340,72 +347,76 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
               </div>
 
               {questionType === "matching" ? (
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-2 gap-8">
                   <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <Label>左侧匹配项</Label>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium">左侧项目</h3>
                       <Button type="button" size="sm" onClick={addLeftItem}>
                         <Plus className="w-4 h-4 mr-1" />
                         添加
                       </Button>
                     </div>
                     {leftItems.map((item, index) => (
-                      <div key={index} className="space-y-2 p-4 border rounded-lg">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium">项目 {index + 1}</span>
-                          {leftItems.length > 1 && (
-                            <Button type="button" variant="ghost" size="sm" onClick={() => removeLeftItem(index)}>
-                              <Trash2 className="w-4 h-4 text-red-500" />
-                            </Button>
-                          )}
-                        </div>
+                      <div key={`left-${index}`} className="flex items-center gap-2">
                         <Input
                           value={item.content}
                           onChange={(e) => updateLeftItem(index, "content", e.target.value)}
-                          placeholder="内容（支持emoji）"
+                          placeholder={`左侧项 ${index + 1}`}
+                          className="flex-1"
                         />
                         <Select
-                          value={item.matchIndex?.toString() || ""}
-                          onValueChange={(v) => updateLeftItem(index, "matchIndex", Number.parseInt(v))}
+                          value={item.matchIndex !== undefined ? String(item.matchIndex) : ""}
+                          onValueChange={(value) => updateLeftItem(index, "matchIndex", parseInt(value))}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="选择匹配的右侧项" />
+                          <SelectTrigger className="w-24">
+                            <SelectValue placeholder="匹配" />
                           </SelectTrigger>
                           <SelectContent>
                             {rightItems.map((_, i) => (
-                              <SelectItem key={i} value={(i + 1).toString()}>
-                                右侧项目 {i + 1}
+                              <SelectItem key={`match-${i}`} value={(i + 1).toString()}>
+                                右侧{i + 1}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => removeLeftItem(index)}
+                          disabled={leftItems.length <= 1}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     ))}
                   </div>
 
                   <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <Label>右侧匹配项</Label>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium">右侧项目</h3>
                       <Button type="button" size="sm" onClick={addRightItem}>
                         <Plus className="w-4 h-4 mr-1" />
                         添加
                       </Button>
                     </div>
                     {rightItems.map((item, index) => (
-                      <div key={index} className="space-y-2 p-4 border rounded-lg">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium">项目 {index + 1}</span>
-                          {rightItems.length > 1 && (
-                            <Button type="button" variant="ghost" size="sm" onClick={() => removeRightItem(index)}>
-                              <Trash2 className="w-4 h-4 text-red-500" />
-                            </Button>
-                          )}
-                        </div>
+                      <div key={`right-${index}`} className="flex items-center gap-2">
                         <Input
                           value={item.content}
                           onChange={(e) => updateRightItem(index, e.target.value)}
-                          placeholder="内容（支持emoji）"
+                          placeholder={`右侧项 ${index + 1}`}
+                          className="flex-1"
                         />
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => removeRightItem(index)}
+                          disabled={rightItems.length <= 1}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     ))}
                   </div>

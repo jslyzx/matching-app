@@ -113,28 +113,37 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         await pool.query("DELETE FROM choice_options WHERE question_id = ?", [questionId])
       }
 
-      // 插入新项目
+      // 创建一个对象来存储所有项目的ID映射
+      const itemIds: { [key: string]: number } = {}
+
+      // 插入所有项目并存储ID
       for (const item of items) {
         const [result] = await pool.query(
           "INSERT INTO question_items (question_id, content, side, display_order) VALUES (?, ?, ?, ?)",
           [questionId, item.content, item.side, item.display_order]
         )
-
-        // 存储插入的ID以用于匹配
-        if (item.side === "left") {
-          item.insertedId = (result as any).insertId
-        }
+        const insertedId = (result as any).insertId
+        
+        // 存储ID，使用side和display_order作为键
+        itemIds[`${item.side}-${item.display_order}`] = insertedId
       }
 
       // 更新左侧项目的match_item_id
+      // 先获取并排序所有right项
+      const rightItems = items.filter(i => i.side === 'right').sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+      
       for (const item of items) {
         if (item.side === "left" && item.matchIndex !== undefined) {
-          const rightItem = items.find((i: any) => i.side === "right" && i.display_order === item.matchIndex)
-          if (rightItem && rightItem.insertedId) {
-            await pool.query("UPDATE question_items SET match_item_id = ? WHERE id = ?", [
-              rightItem.insertedId,
-              item.insertedId,
-            ])
+          // 确保matchIndex是有效的数字且在正确范围内
+          const matchIndex = Number(item.matchIndex);
+          if (!isNaN(matchIndex) && matchIndex >= 0 && matchIndex < rightItems.length) {
+            const leftId = itemIds[`left-${item.display_order}`];
+            const targetRightItem = rightItems[matchIndex];
+            const rightId = itemIds[`right-${targetRightItem.display_order}`];
+
+            if (leftId && rightId) {
+              await pool.query("UPDATE question_items SET match_item_id = ? WHERE id = ?", [rightId, leftId]);
+            }
           }
         }
       }
