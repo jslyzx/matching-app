@@ -49,7 +49,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   try {
     const { id: questionId } = await params
     const body = await request.json()
-    const { title, description, difficulty_level, is_active, question_type, items, options } = body
+    const { title, description, difficulty_level, grade, subject, is_active, question_type, items, options } = body
 
     // Update question with only provided fields
     let updateFields = []
@@ -66,6 +66,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (difficulty_level !== undefined) {
       updateFields.push("difficulty_level = ?")
       updateValues.push(difficulty_level)
+    }
+    if (grade !== undefined) {
+      updateFields.push("grade = ?")
+      updateValues.push(grade)
+    }
+    if (subject !== undefined) {
+      updateFields.push("subject = ?")
+      updateValues.push(subject)
     }
     if (is_active !== undefined) {
       updateFields.push("is_active = ?")

@@ -36,6 +36,8 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [difficultyLevel, setDifficultyLevel] = useState("easy")
+  const [grade, setGrade] = useState("grade1")
+  const [subject, setSubject] = useState("math")
   const [isActive, setIsActive] = useState(true)
   const [questionType, setQuestionType] = useState<"matching" | "choice">("matching")
   const [leftItems, setLeftItems] = useState<QuestionItem[]>([])
@@ -61,6 +63,8 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
       setTitle(data.question.title || "")
       setDescription(data.question.description || "")
       setDifficultyLevel(data.question.difficulty_level || "easy")
+      setGrade(data.question.grade || "grade1")
+      setSubject(data.question.subject || "math")
       setIsActive(data.question.is_active === 1 || false)
       setQuestionType(data.question.question_type || "matching")
 
@@ -222,6 +226,8 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
         title,
         description,
         difficulty_level: difficultyLevel,
+        grade,
+        subject,
         is_active: isActive,
         question_type: questionType,
       }
@@ -328,6 +334,7 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
                       <SelectItem value="easy">简单</SelectItem>
                       <SelectItem value="medium">中等</SelectItem>
                       <SelectItem value="hard">困难</SelectItem>
+                      <SelectItem value="error_prone">易错题</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -341,6 +348,39 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
                     <SelectContent>
                       <SelectItem value="active">启用</SelectItem>
                       <SelectItem value="inactive">禁用</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="grade">年级</Label>
+                  <Select value={grade} onValueChange={setGrade}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="选择年级" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="grade1">一年级</SelectItem>
+                      <SelectItem value="grade2">二年级</SelectItem>
+                      <SelectItem value="grade3">三年级</SelectItem>
+                      <SelectItem value="grade4">四年级</SelectItem>
+                      <SelectItem value="grade5">五年级</SelectItem>
+                      <SelectItem value="grade6">六年级</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="subject">科目</Label>
+                  <Select value={subject} onValueChange={setSubject}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="选择科目" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="math">数学</SelectItem>
+                      <SelectItem value="chinese">语文</SelectItem>
+                      <SelectItem value="english">英语</SelectItem>
+                      <SelectItem value="science">科学</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

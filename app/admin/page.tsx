@@ -11,6 +11,8 @@ interface Question {
   title: string
   description: string
   difficulty_level: string
+  grade: string
+  subject: string
   is_active: number
   created_at: string
 }
@@ -128,10 +130,12 @@ export default function AdminPage() {
               <TableRow>
                 <TableHead>ID</TableHead>
                 <TableHead>标题</TableHead>
-                <TableHead>描述</TableHead>
-                <TableHead>难度</TableHead>
-                <TableHead>状态</TableHead>
-                <TableHead>创建时间</TableHead>
+              <TableHead>描述</TableHead>
+              <TableHead>难度</TableHead>
+              <TableHead>年级</TableHead>
+              <TableHead>科目</TableHead>
+              <TableHead>状态</TableHead>
+              <TableHead>创建时间</TableHead>
                 <TableHead className="text-right">操作</TableHead>
               </TableRow>
             </TableHeader>
@@ -148,14 +152,36 @@ export default function AdminPage() {
                           ? "default"
                           : question.difficulty_level === "medium"
                             ? "secondary"
-                            : "destructive"
+                            : question.difficulty_level === "error_prone"
+                              ? "outline"
+                              : "destructive"
                       }
                     >
                       {question.difficulty_level === "easy"
                         ? "简单"
                         : question.difficulty_level === "medium"
                           ? "中等"
-                          : "困难"}
+                          : question.difficulty_level === "error_prone"
+                            ? "易错题"
+                            : "困难"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {question.grade === "grade1" ? "一年级" :
+                       question.grade === "grade2" ? "二年级" :
+                       question.grade === "grade3" ? "三年级" :
+                       question.grade === "grade4" ? "四年级" :
+                       question.grade === "grade5" ? "五年级" :
+                       question.grade === "grade6" ? "六年级" : "-"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {question.subject === "math" ? "数学" :
+                       question.subject === "chinese" ? "语文" :
+                       question.subject === "english" ? "英语" :
+                       question.subject === "science" ? "科学" : "-"}
                     </Badge>
                   </TableCell>
                   <TableCell>

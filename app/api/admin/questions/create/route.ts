@@ -4,12 +4,12 @@ import { pool } from "@/lib/db"
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { title, description, difficulty_level, is_active, items, type, options } = body
+    const { title, description, difficulty_level, grade, subject, is_active, items, type, options } = body
 
     // Insert question
     const [result] = await pool.query(
-      "INSERT INTO questions (title, description, difficulty_level, is_active, question_type) VALUES (?, ?, ?, ?, ?)",
-      [title, description, difficulty_level, is_active ? 1 : 0, type],
+      "INSERT INTO questions (title, description, difficulty_level, grade, subject, is_active, question_type) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [title, description, difficulty_level, grade, subject, is_active ? 1 : 0, type],
     )
 
     const questionId = (result as any).insertId
