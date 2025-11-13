@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import pool from "@/lib/db"
+import { splitPoemContent } from "@/lib/poems"
 
 export async function GET() {
   try {
@@ -10,7 +11,7 @@ export async function GET() {
     try {
       // 获取所有题目
       const [questions] = await connection.query(
-        "SELECT id, title, description, question_type FROM questions WHERE is_active = 1 ORDER BY id",
+        "SELECT id, title, description, question_type, poem_id, hint_enabled, hint_text, image_enabled, image_url, draft_enabled FROM questions WHERE is_active = 1 ORDER BY id",
       )
 
       const questionsArray = questions as any[]
@@ -48,6 +49,46 @@ export async function GET() {
                 content: option.content,
                 isCorrect: option.is_correct === 1,
               })),
+              hintEnabled: !!question.hint_enabled,
+              hintText: question.hint_text || null,
+              imageEnabled: !!question.image_enabled,
+              imageUrl: question.image_url || null,
+              draftEnabled: !!question.draft_enabled,
+            }
+          } else if (question.question_type === 'poem_fill') {
+            const [poemRows] = await connection.query(
+              `SELECT id, title, author, dynasty, genre, content, content_lines FROM poems WHERE id = ?`,
+              [question.poem_id],
+            )
+            const poemArray = poemRows as any[]
+            if (poemArray.length === 0) {
+              return null
+            }
+            const poem = poemArray[0]
+            let lines: string[] = []
+            if (poem.content_lines) {
+              try {
+                lines = JSON.parse(poem.content_lines)
+              } catch {
+                lines = []
+              }
+            }
+            if (lines.length === 0 && poem.content) {
+              lines = splitPoemContent(poem.content, poem.genre)
+            }
+            return {
+              id: question.id,
+              type: 'poem_fill',
+              title: poem.title,
+              author: poem.author,
+              dynasty: poem.dynasty,
+              genre: poem.genre,
+              lines,
+              hintEnabled: !!question.hint_enabled,
+              hintText: question.hint_text || null,
+              imageEnabled: !!question.image_enabled,
+              imageUrl: question.image_url || null,
+              draftEnabled: !!question.draft_enabled,
             }
           } else {
             // 处理连线题
@@ -92,6 +133,11 @@ export async function GET() {
               type: 'matching',
               leftItems,
               rightItems,
+              hintEnabled: !!question.hint_enabled,
+              hintText: question.hint_text || null,
+              imageEnabled: !!question.image_enabled,
+              imageUrl: question.image_url || null,
+              draftEnabled: !!question.draft_enabled,
             }
           }
         }),

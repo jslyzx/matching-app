@@ -4,18 +4,20 @@ import { pool } from "@/lib/db"
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { title, description, difficulty_level, grade, subject, is_active, items, type, options } = body
+    const { title, description, difficulty_level, grade, subject, is_active, items, type, options, poem_id, hint_enabled, hint_text, image_enabled, image_url, draft_enabled } = body
 
     // Insert question
     const [result] = await pool.query(
-      "INSERT INTO questions (title, description, difficulty_level, grade, subject, is_active, question_type) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [title, description, difficulty_level, grade, subject, is_active ? 1 : 0, type],
+      "INSERT INTO questions (title, description, difficulty_level, grade, subject, poem_id, hint_enabled, hint_text, image_enabled, image_url, draft_enabled, is_active, question_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [title, description, difficulty_level, grade, subject, poem_id || null, hint_enabled ? 1 : 0, hint_text || null, image_enabled ? 1 : 0, image_url || null, draft_enabled ? 1 : 0, is_active ? 1 : 0, type],
     )
 
     const questionId = (result as any).insertId
 
     // 根据题目类型处理不同的数据
-    if (type === 'matching' && items && items.length > 0) {
+    if (type === 'poem_fill') {
+      
+    } else if (type === 'matching' && items && items.length > 0) {
       const itemIds: { [key: string]: number } = {}
 
       // First pass: insert all items

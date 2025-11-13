@@ -1,6 +1,5 @@
 import mysql from "mysql2/promise"
 
-// 创建数据库连接池
 const pool = mysql.createPool({
   host: "43.156.92.151",
   user: "root",
@@ -12,5 +11,6 @@ const pool = mysql.createPool({
   charset: "utf8mb4",
 })
 
+export const db = pool
 export { pool }
 export default pool

@@ -5,6 +5,9 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { renderMathContent } from "@/components/math-formula"
 import { cn } from "@/lib/utils"
+import { Lightbulb } from "lucide-react"
+import { DraftOverlay } from "@/components/draft-overlay"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 interface Option {
   id: string
@@ -28,6 +31,7 @@ export function ChoiceQuestion({ question, onComplete }: ChoiceQuestionProps) {
   const [selectedOptions, setSelectedOptions] = useState<string[]>([])
   const [feedback, setFeedback] = useState<"correct" | "incorrect" | null>(null)
   const [submitted, setSubmitted] = useState(false)
+  const [draftOpen, setDraftOpen] = useState(false)
 
 
   const handleOptionClick = (optionId: string) => {
@@ -36,10 +40,12 @@ export function ChoiceQuestion({ question, onComplete }: ChoiceQuestionProps) {
     // 检查是否已经选择了该选项
     if (selectedOptions.includes(optionId)) {
       // 如果已选择，则移除
-      setSelectedOptions(selectedOptions.filter((id) => id !== optionId))
+      const next = selectedOptions.filter((id) => id !== optionId)
+      setSelectedOptions(next)
     } else {
       // 如果未选择，则添加
-      setSelectedOptions([...selectedOptions, optionId])
+      const next = [...selectedOptions, optionId]
+      setSelectedOptions(next)
     }
   }
 
@@ -67,10 +73,32 @@ export function ChoiceQuestion({ question, onComplete }: ChoiceQuestionProps) {
 
   return (
     <div className="relative">
+      <DraftOverlay open={draftOpen} onClose={() => setDraftOpen(false)} />
       <div className="mb-6 text-center">
         <h2 className="mb-2 font-bold text-2xl text-foreground md:text-3xl">
           {renderMathContent(question.title, "choice-title")}
         </h2>
+        <div className="mt-2 flex items-center justify-center gap-3">
+          {question.imageEnabled && question.imageUrl && (
+            <img src={question.imageUrl} alt="题目图片" className="max-h-40 object-contain" />
+          )}
+          {question.hintEnabled && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="flex items-center gap-2 rounded-full bg-yellow-100 px-3 py-1">
+                  <Lightbulb className="w-4 h-4 text-yellow-700" />
+                  <span className="text-sm text-yellow-800">提示</span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 rounded-xl border bg-white p-4 shadow-xl">
+                <div className="text-sm leading-relaxed text-gray-700">{question.hintText}</div>
+              </PopoverContent>
+            </Popover>
+          )}
+          {question.draftEnabled && (
+            <button onClick={() => setDraftOpen(true)} className="px-3 py-1 rounded bg-gray-200">草稿</button>
+          )}
+        </div>
         {question.description && (
           <div className="text-muted-foreground text-lg">
             {renderMathContent(question.description, "choice-description")}

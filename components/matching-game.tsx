@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { renderMathContent } from "@/components/math-formula"
 import { cn } from "@/lib/utils"
+import { Lightbulb } from "lucide-react"
+import { DraftOverlay } from "@/components/draft-overlay"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 interface Item {
   id: string
@@ -37,6 +40,7 @@ export function MatchingGame({ question, onComplete }: MatchingGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const leftRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
   const rightRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
+  const [draftOpen, setDraftOpen] = useState(false)
 
   // 绘制连线
   useEffect(() => {
@@ -131,9 +135,31 @@ export function MatchingGame({ question, onComplete }: MatchingGameProps) {
 
   return (
     <div className="relative">
+      <DraftOverlay open={draftOpen} onClose={() => setDraftOpen(false)} />
       <h2 className="mb-6 text-center font-bold text-2xl text-foreground md:text-3xl">
         {renderMathContent(question.title, "matching-title")}
       </h2>
+      <div className="mb-4 flex items-center justify-center gap-3">
+        {question.imageEnabled && question.imageUrl && (
+          <img src={question.imageUrl} alt="题目图片" className="max-h-40 object-contain" />
+        )}
+        {question.hintEnabled && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className="flex items-center gap-2 rounded-full bg-yellow-100 px-3 py-1">
+                <Lightbulb className="w-4 h-4 text-yellow-700" />
+                <span className="text-sm text-yellow-800">提示</span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 rounded-xl border bg-white p-4 shadow-xl">
+              <div className="text-sm leading-relaxed text-gray-700">{question.hintText}</div>
+            </PopoverContent>
+          </Popover>
+        )}
+        {question.draftEnabled && (
+          <button onClick={() => setDraftOpen(true)} className="px-3 py-1 rounded bg-gray-200">草稿</button>
+        )}
+      </div>
 
       <div className="relative grid grid-cols-[1fr_auto_1fr] gap-4 md:gap-8">
         {/* 左列 */}

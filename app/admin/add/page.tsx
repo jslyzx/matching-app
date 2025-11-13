@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -36,7 +36,14 @@ export default function AddQuestionPage() {
   const [grade, setGrade] = useState("grade1")
   const [subject, setSubject] = useState("math")
   const [isActive, setIsActive] = useState(true)
-  const [questionType, setQuestionType] = useState<"matching" | "choice">("matching")
+  const [hintEnabled, setHintEnabled] = useState(false)
+  const [hintText, setHintText] = useState("")
+  const [imageEnabled, setImageEnabled] = useState(false)
+  const [imageUrl, setImageUrl] = useState("")
+  const [draftEnabled, setDraftEnabled] = useState(false)
+  const [questionType, setQuestionType] = useState<"matching" | "choice" | "poem_fill">("matching")
+  const [poems, setPoems] = useState<{ id: number; title: string; author: string; dynasty: string }[]>([])
+  const [poemId, setPoemId] = useState<number | null>(null)
   const [leftItems, setLeftItems] = useState<QuestionItem[]>([{ content: "", side: "left", display_order: 1 }])
   const [rightItems, setRightItems] = useState<QuestionItem[]>([{ content: "", side: "right", display_order: 1 }])
   const [choiceOptions, setChoiceOptions] = useState<ChoiceOption[]>([
@@ -47,6 +54,22 @@ export default function AddQuestionPage() {
   ])
   const [previewFormula, setPreviewFormula] = useState("")
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    async function loadPoems() {
+      try {
+        const res = await fetch(`/api/admin/poems?limit=50&page=1`)
+        if (!res.ok) return
+        const data = await res.json()
+        const items = (data.poems || []) as any[]
+        const mapped = items.map((p) => ({ id: p.id, title: p.title, author: p.author, dynasty: p.dynasty }))
+        setPoems(mapped)
+      } catch {}
+    }
+    if (questionType === "poem_fill") {
+      loadPoems()
+    }
+  }, [questionType])
 
   const addLeftItem = () => {
     setLeftItems([...leftItems, { content: "", side: "left", display_order: leftItems.length + 1 }])
@@ -122,19 +145,22 @@ export default function AddQuestionPage() {
         alert("请填写所有匹配项内容")
         return
       }
-
       if (leftItems.some((item) => item.matchIndex === undefined)) {
         alert("请为所有左侧项设置匹配关系")
         return
       }
-    } else {
+    } else if (questionType === "choice") {
       if (choiceOptions.some((option) => !option.content)) {
         alert("请填写所有选项内容")
         return
       }
-
       if (!choiceOptions.some((option) => option.is_correct)) {
         alert("请至少选择一个正确答案")
+        return
+      }
+    } else {
+      if (!poemId) {
+        alert("请选择古诗")
         return
       }
     }
@@ -163,11 +189,16 @@ export default function AddQuestionPage() {
             is_active: isActive,
             type: "matching",
             items,
+            hint_enabled: hintEnabled,
+            hint_text: hintText,
+            image_enabled: imageEnabled,
+            image_url: imageUrl,
+            draft_enabled: draftEnabled,
           }),
         })
 
         if (!response.ok) throw new Error("Failed to create question")
-      } else {
+      } else if (questionType === "choice") {
         const response = await fetch("/api/admin/questions/create", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -180,9 +211,39 @@ export default function AddQuestionPage() {
             is_active: isActive,
             type: "choice",
             options: choiceOptions,
+            hint_enabled: hintEnabled,
+            hint_text: hintText,
+            image_enabled: imageEnabled,
+            image_url: imageUrl,
+            draft_enabled: draftEnabled,
           }),
         })
 
+        if (!response.ok) throw new Error("Failed to create question")
+      } else {
+        if (!poemId) {
+          alert("请选择古诗")
+          return
+        }
+        const response = await fetch("/api/admin/questions/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title,
+            description,
+            difficulty_level: difficultyLevel,
+            grade,
+            subject,
+            is_active: isActive,
+            type: "poem_fill",
+            poem_id: poemId,
+            hint_enabled: hintEnabled,
+            hint_text: hintText,
+            image_enabled: imageEnabled,
+            image_url: imageUrl,
+            draft_enabled: draftEnabled,
+          }),
+        })
         if (!response.ok) throw new Error("Failed to create question")
       }
 
@@ -220,6 +281,42 @@ export default function AddQuestionPage() {
                   required
                 />
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>提示</Label>
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="hint-enabled" checked={hintEnabled} onCheckedChange={(v) => setHintEnabled(!!v)} />
+                    <Label htmlFor="hint-enabled">启用提示</Label>
+                  </div>
+                  {hintEnabled && (
+                    <Textarea value={hintText} onChange={(e) => setHintText(e.target.value)} placeholder="输入提示内容" />
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>图片</Label>
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="image-enabled" checked={imageEnabled} onCheckedChange={(v) => setImageEnabled(!!v)} />
+                    <Label htmlFor="image-enabled">启用图片</Label>
+                  </div>
+                  {imageEnabled && (
+                    <div className="space-y-2">
+                      <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="图片URL" />
+                      {imageUrl && (
+                        <div className="border rounded p-2">
+                          <img src={imageUrl} alt="预览" className="max-h-40 object-contain" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>草稿功能</Label>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="draft-enabled" checked={draftEnabled} onCheckedChange={(v) => setDraftEnabled(!!v)} />
+                  <Label htmlFor="draft-enabled">启用草稿</Label>
+                </div>
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="description">描述</Label>
@@ -250,13 +347,14 @@ export default function AddQuestionPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="question-type">题目类型</Label>
-                  <Select value={questionType} onValueChange={(value: "matching" | "choice") => setQuestionType(value)}>
+                  <Select value={questionType} onValueChange={(value: any) => setQuestionType(value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="选择题目类型" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="matching">连线题</SelectItem>
                       <SelectItem value="choice">选择题</SelectItem>
+                      <SelectItem value="poem_fill">古诗填空</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -377,7 +475,7 @@ export default function AddQuestionPage() {
                     ))}
                   </div>
                 </div>
-              ) : (
+              ) : questionType === "choice" ? (
                 <div className="space-y-6">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -442,6 +540,25 @@ export default function AddQuestionPage() {
                     ))}
                     <p className="text-sm text-slate-500">点击选项前的圆圈标记为正确答案</p>
                   </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="poem">选择古诗</Label>
+                    <Select value={poemId ? String(poemId) : ""} onValueChange={(v) => setPoemId(Number(v))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="请选择古诗" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {poems.map((p) => (
+                          <SelectItem key={p.id} value={String(p.id)}>
+                            {p.title}（{p.dynasty}·{p.author}）
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <p className="text-sm text-slate-500">提交后将生成古诗填空题，作答页面按规则展示。</p>
                 </div>
               )}
 

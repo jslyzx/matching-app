@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { MatchingGame } from "@/components/matching-game"
+import { PoemFill } from "@/components/poem-fill"
 import { ChoiceQuestion } from "@/components/choice-question"
 import { Button } from "@/components/ui/button"
 
@@ -11,6 +12,7 @@ export default function Home() {
   const [questions, setQuestions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [runId, setRunId] = useState(0)
 
   useEffect(() => {
     async function fetchQuestions() {
@@ -47,6 +49,7 @@ export default function Home() {
   const handleRestart = () => {
     setCurrentQuestion(0)
     setScore(0)
+    setRunId((v) => v + 1)
   }
 
   const isLastQuestion = currentQuestion === questions.length - 1
@@ -102,11 +105,13 @@ export default function Home() {
       <div className="mx-auto max-w-6xl">
         <header className="mb-8 text-center">
           <h1 className="mb-2 font-bold text-4xl text-primary md:text-5xl">
-            {currentQuestionData.type === 'matching' ? '连线游戏' : '选择题'}
+            {currentQuestionData.type === 'matching' ? '连线游戏' : currentQuestionData.type === 'poem_fill' ? '古诗填空' : '选择题'}
           </h1>
           <p className="text-muted-foreground text-lg">
             {currentQuestionData.type === 'matching' 
               ? '把左边和右边相关的内容连起来吧！' 
+              : currentQuestionData.type === 'poem_fill' 
+              ? '从下方选择字填入上面的空格，完成整首诗' 
               : '选择正确的答案！'}
           </p>
           <div className="mt-4 flex items-center justify-center gap-4">
@@ -119,13 +124,19 @@ export default function Home() {
 
         {currentQuestionData.type === 'matching' ? (
           <MatchingGame
-            key={`matching-${currentQuestionData.id}`}
+            key={`matching-${currentQuestionData.id}-${runId}`}
+            question={currentQuestionData}
+            onComplete={handleComplete}
+          />
+        ) : currentQuestionData.type === 'poem_fill' ? (
+          <PoemFill
+            key={`poem-${currentQuestionData.id}-${runId}`}
             question={currentQuestionData}
             onComplete={handleComplete}
           />
         ) : (
           <ChoiceQuestion
-            key={`choice-${currentQuestionData.id}`}
+            key={`choice-${currentQuestionData.id}-${runId}`}
             question={currentQuestionData}
             onComplete={handleComplete}
           />

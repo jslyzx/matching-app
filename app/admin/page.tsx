@@ -91,6 +91,22 @@ export default function AdminPage() {
     }
   }
 
+  const handleBulkStatus = async (active: boolean) => {
+    if (!confirm(active ? "确定要启用全部题目吗？" : "确定要停用全部题目吗？")) return
+    try {
+      const res = await fetch("/api/admin/questions/bulk-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: active })
+      })
+      if (!res.ok) throw new Error("Failed to bulk update")
+      await fetchQuestions()
+    } catch (err) {
+      alert("批量更新失败")
+      console.error(err)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -122,6 +138,8 @@ export default function AdminPage() {
                 <Plus className="w-4 h-4 mr-2" />
                 新增题目
               </Button>
+              <Button onClick={() => handleBulkStatus(true)} variant="secondary">全部启用</Button>
+              <Button onClick={() => handleBulkStatus(false)} variant="outline">全部停用</Button>
             </div>
           </div>
 

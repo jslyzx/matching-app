@@ -49,7 +49,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   try {
     const { id: questionId } = await params
     const body = await request.json()
-    const { title, description, difficulty_level, grade, subject, is_active, question_type, items, options } = body
+    const { title, description, difficulty_level, grade, subject, poem_id, hint_enabled, hint_text, image_enabled, image_url, draft_enabled, is_active, question_type, items, options } = body
 
     // Update question with only provided fields
     let updateFields = []
@@ -74,6 +74,30 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (subject !== undefined) {
       updateFields.push("subject = ?")
       updateValues.push(subject)
+    }
+    if (poem_id !== undefined) {
+      updateFields.push("poem_id = ?")
+      updateValues.push(poem_id)
+    }
+    if (hint_enabled !== undefined) {
+      updateFields.push("hint_enabled = ?")
+      updateValues.push(hint_enabled ? 1 : 0)
+    }
+    if (hint_text !== undefined) {
+      updateFields.push("hint_text = ?")
+      updateValues.push(hint_text)
+    }
+    if (image_enabled !== undefined) {
+      updateFields.push("image_enabled = ?")
+      updateValues.push(image_enabled ? 1 : 0)
+    }
+    if (image_url !== undefined) {
+      updateFields.push("image_url = ?")
+      updateValues.push(image_url)
+    }
+    if (draft_enabled !== undefined) {
+      updateFields.push("draft_enabled = ?")
+      updateValues.push(draft_enabled ? 1 : 0)
     }
     if (is_active !== undefined) {
       updateFields.push("is_active = ?")

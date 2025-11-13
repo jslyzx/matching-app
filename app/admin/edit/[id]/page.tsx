@@ -2,8 +2,8 @@
 
 import type React from "react"
 
-import { useState, useEffect, use } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -30,8 +30,9 @@ interface ChoiceOption {
   display_order: number
 }
 
-export default function EditQuestionPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params)
+export default function EditQuestionPage() {
+  const params = useParams()
+  const id = params.id as string
   const router = useRouter()
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -39,7 +40,14 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
   const [grade, setGrade] = useState("grade1")
   const [subject, setSubject] = useState("math")
   const [isActive, setIsActive] = useState(true)
-  const [questionType, setQuestionType] = useState<"matching" | "choice">("matching")
+  const [hintEnabled, setHintEnabled] = useState(false)
+  const [hintText, setHintText] = useState("")
+  const [imageEnabled, setImageEnabled] = useState(false)
+  const [imageUrl, setImageUrl] = useState("")
+  const [draftEnabled, setDraftEnabled] = useState(false)
+  const [questionType, setQuestionType] = useState<"matching" | "choice" | "poem_fill">("matching")
+  const [poems, setPoems] = useState<{ id: number; title: string; author: string; dynasty: string }[]>([])
+  const [poemId, setPoemId] = useState<number | null>(null)
   const [leftItems, setLeftItems] = useState<QuestionItem[]>([])
   const [rightItems, setRightItems] = useState<QuestionItem[]>([])
   const [choiceOptions, setChoiceOptions] = useState<ChoiceOption[]>([])
@@ -49,6 +57,20 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
 
   useEffect(() => {
     fetchQuestion()
+  }, [])
+
+  useEffect(() => {
+    async function loadPoems() {
+      try {
+        const res = await fetch(`/api/admin/poems?limit=50&page=1`)
+        if (!res.ok) return
+        const data = await res.json()
+        const items = (data.poems || []) as any[]
+        const mapped = items.map((p) => ({ id: p.id, title: p.title, author: p.author, dynasty: p.dynasty }))
+        setPoems(mapped)
+      } catch {}
+    }
+    loadPoems()
   }, [])
 
   const fetchQuestion = async () => {
@@ -66,7 +88,15 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
       setGrade(data.question.grade || "grade1")
       setSubject(data.question.subject || "math")
       setIsActive(data.question.is_active === 1 || false)
+      setHintEnabled(!!data.question.hint_enabled)
+      setHintText(data.question.hint_text || "")
+      setImageEnabled(!!data.question.image_enabled)
+      setImageUrl(data.question.image_url || "")
+      setDraftEnabled(!!data.question.draft_enabled)
       setQuestionType(data.question.question_type || "matching")
+      if (data.question.question_type === "poem_fill") {
+        setPoemId(data.question.poem_id || null)
+      }
 
       if (data.question.question_type === "choice") {
         // 处理选择题选项
@@ -94,6 +124,10 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
         // 清空连线题数据
         setLeftItems([])
         setRightItems([])
+      } else if (data.question.question_type === "choice") {
+        // 清空连线题数据
+        setLeftItems([])
+        setRightItems([])
       } else {
         // 处理连线题
         const left = (data.items || []).filter((item: any) => item && item.side === "left")
@@ -110,7 +144,6 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
 
         setLeftItems(leftWithMatch.length > 0 ? leftWithMatch : [{ content: "", side: "left", display_order: 1 }])
         setRightItems(right.length > 0 ? right : [{ content: "", side: "right", display_order: 1 }])
-        // 清空选择题数据
         setChoiceOptions([])
       }
     } catch (error) {
@@ -230,6 +263,11 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
         subject,
         is_active: isActive,
         question_type: questionType,
+        hint_enabled: hintEnabled,
+        hint_text: hintText,
+        image_enabled: imageEnabled,
+        image_url: imageUrl,
+        draft_enabled: draftEnabled,
       }
 
       // 根据题目类型添加不同的数据
@@ -245,6 +283,8 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
         requestBody = { ...requestBody, items }
       } else if (questionType === "choice") {
         requestBody = { ...requestBody, options: choiceOptions }
+      } else {
+        requestBody = { ...requestBody, poem_id: poemId }
       }
 
       const response = await fetch(`/api/admin/questions/${id}`, {
@@ -320,8 +360,19 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
                     <SelectContent>
                       <SelectItem value="matching">匹配题</SelectItem>
                       <SelectItem value="choice">选择题</SelectItem>
+                      <SelectItem value="poem_fill">古诗填空</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>提示</Label>
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="hint-enabled" checked={hintEnabled} onCheckedChange={(v) => setHintEnabled(!!v)} />
+                    <Label htmlFor="hint-enabled">启用提示</Label>
+                  </div>
+                  {hintEnabled && (
+                    <Textarea value={hintText} onChange={(e) => setHintText(e.target.value)} placeholder="输入提示内容" />
+                  )}
                 </div>
                 
                 <div className="space-y-2">
@@ -350,6 +401,23 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
                       <SelectItem value="inactive">禁用</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>图片</Label>
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="image-enabled" checked={imageEnabled} onCheckedChange={(v) => setImageEnabled(!!v)} />
+                    <Label htmlFor="image-enabled">启用图片</Label>
+                  </div>
+                  {imageEnabled && (
+                    <div className="space-y-2">
+                      <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="图片URL" />
+                      {imageUrl && (
+                        <div className="border rounded p-2">
+                          <img src={imageUrl} alt="预览" className="max-h-40 object-contain" />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -461,7 +529,7 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
                     ))}
                   </div>
                 </div>
-              ) : (
+              ) : questionType === "choice" ? (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <Label>选项</Label>
@@ -523,6 +591,25 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
                     </div>
                   )}
                 </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="poem">选择古诗</Label>
+                    <Select value={poemId ? String(poemId) : ""} onValueChange={(v) => setPoemId(Number(v))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="请选择古诗" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {poems.map((p) => (
+                          <SelectItem key={p.id} value={String(p.id)}>
+                            {p.title}（{p.dynasty}·{p.author}）
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <p className="text-sm text-slate-500">保存后题目将作为古诗填空题。</p>
+                </div>
               )}
 
               <div className="flex justify-end gap-3">
@@ -540,3 +627,10 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
     </div>
   )
 }
+              <div className="space-y-2">
+                <Label>草稿功能</Label>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="draft-enabled" checked={draftEnabled} onCheckedChange={(v) => setDraftEnabled(!!v)} />
+                  <Label htmlFor="draft-enabled">启用草稿</Label>
+                </div>
+              </div>
