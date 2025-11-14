@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { Lightbulb } from "lucide-react"
-import { DraftOverlay } from "@/components/draft-overlay"
+import { DraftPad } from "@/components/draft-pad"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 interface PoemFillQuestion {
@@ -107,7 +107,7 @@ export function PoemFill({ question, onComplete }: PoemFillProps) {
 
   return (
     <div className="space-y-6">
-      <DraftOverlay open={draftOpen} onClose={() => setDraftOpen(false)} />
+      <DraftPad open={draftOpen} onClose={() => setDraftOpen(false)} />
       <div className="text-center">
         <div className="text-2xl md:text-3xl font-bold mb-2">{question.title}</div>
         <div className="text-muted-foreground text-lg">{question.dynasty} · {question.author}</div>

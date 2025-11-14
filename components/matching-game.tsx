@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card"
 import { renderMathContent } from "@/components/math-formula"
 import { cn } from "@/lib/utils"
 import { Lightbulb } from "lucide-react"
-import { DraftOverlay } from "@/components/draft-overlay"
+import { DraftPad } from "@/components/draft-pad"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 interface Item {
@@ -135,7 +135,7 @@ export function MatchingGame({ question, onComplete }: MatchingGameProps) {
 
   return (
     <div className="relative">
-      <DraftOverlay open={draftOpen} onClose={() => setDraftOpen(false)} />
+      <DraftPad open={draftOpen} onClose={() => setDraftOpen(false)} />
       <h2 className="mb-6 text-center font-bold text-2xl text-foreground md:text-3xl">
         {renderMathContent(question.title, "matching-title")}
       </h2>

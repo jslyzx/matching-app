@@ -454,6 +454,14 @@ export default function EditQuestionPage() {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label>草稿功能</Label>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="draft-enabled" checked={draftEnabled} onCheckedChange={(v) => setDraftEnabled(!!v)} />
+                  <Label htmlFor="draft-enabled">启用草稿</Label>
+                </div>
+              </div>
+
               {questionType === "matching" ? (
                 <div className="grid grid-cols-2 gap-8">
                   <div className="space-y-4">
@@ -627,10 +635,3 @@ export default function EditQuestionPage() {
     </div>
   )
 }
-              <div className="space-y-2">
-                <Label>草稿功能</Label>
-                <div className="flex items-center gap-2">
-                  <Checkbox id="draft-enabled" checked={draftEnabled} onCheckedChange={(v) => setDraftEnabled(!!v)} />
-                  <Label htmlFor="draft-enabled">启用草稿</Label>
-                </div>
-              </div>
