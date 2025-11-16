@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Pencil, Trash2, Plus, Download } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface Question {
   id: number
@@ -21,18 +23,37 @@ export default function AdminPage() {
   const [questions, setQuestions] = useState<Question[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [total, setTotal] = useState(0)
+  const [keyword, setKeyword] = useState("")
+  const [type, setType] = useState<string | undefined>(undefined)
+  const [difficulty, setDifficulty] = useState<string | undefined>(undefined)
+  const [grade, setGrade] = useState<string | undefined>(undefined)
+  const [subject, setSubject] = useState<string | undefined>(undefined)
+  const [isActive, setIsActive] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     fetchQuestions()
-  }, [])
+  }, [page, pageSize])
 
   const fetchQuestions = async () => {
     try {
       setLoading(true)
-      const response = await fetch("/api/admin/questions")
+      const params = new URLSearchParams()
+      params.set("page", String(page))
+      params.set("pageSize", String(pageSize))
+      if (keyword) params.set("keyword", keyword)
+      if (type) params.set("type", type)
+      if (difficulty) params.set("difficulty", difficulty)
+      if (grade) params.set("grade", grade)
+      if (subject) params.set("subject", subject)
+      if (isActive) params.set("is_active", isActive)
+      const response = await fetch(`/api/admin/questions?${params.toString()}`)
       if (!response.ok) throw new Error("Failed to fetch questions")
       const data = await response.json()
       setQuestions(data.questions || [])
+      setTotal(data.total || 0)
     } catch (err) {
       setError("加载题目失败")
       console.error(err)
@@ -143,6 +164,72 @@ export default function AdminPage() {
             </div>
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-6">
+            <div className="md:col-span-2">
+              <Input placeholder="关键字（标题/描述）" value={keyword} onChange={(e) => setKeyword(e.target.value)} />
+            </div>
+            <div>
+              <Select value={type} onValueChange={(v) => setType(v || undefined)}>
+                <SelectTrigger><SelectValue placeholder="题型" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="matching">连线题</SelectItem>
+                  <SelectItem value="choice">选择题</SelectItem>
+                  <SelectItem value="poem_fill">古诗填空</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Select value={difficulty} onValueChange={(v) => setDifficulty(v || undefined)}>
+                <SelectTrigger><SelectValue placeholder="难度" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="easy">简单</SelectItem>
+                  <SelectItem value="medium">中等</SelectItem>
+                  <SelectItem value="hard">困难</SelectItem>
+                  <SelectItem value="error_prone">易错题</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Select value={grade} onValueChange={(v) => setGrade(v || undefined)}>
+                <SelectTrigger><SelectValue placeholder="年级" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="grade1">一年级</SelectItem>
+                  <SelectItem value="grade2">二年级</SelectItem>
+                  <SelectItem value="grade3">三年级</SelectItem>
+                  <SelectItem value="grade4">四年级</SelectItem>
+                  <SelectItem value="grade5">五年级</SelectItem>
+                  <SelectItem value="grade6">六年级</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Select value={subject} onValueChange={(v) => setSubject(v || undefined)}>
+                <SelectTrigger><SelectValue placeholder="科目" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="math">数学</SelectItem>
+                  <SelectItem value="chinese">语文</SelectItem>
+                  <SelectItem value="english">英语</SelectItem>
+                  <SelectItem value="science">科学</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Select value={isActive} onValueChange={(v) => setIsActive(v || undefined)}>
+                <SelectTrigger><SelectValue placeholder="状态" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">启用</SelectItem>
+                  <SelectItem value="0">禁用</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="md:col-span-6 flex gap-2">
+              <Button onClick={() => { setPage(1); fetchQuestions() }} variant="default">查询</Button>
+              <Button onClick={() => {
+                setKeyword(""); setType(undefined); setDifficulty(undefined); setGrade(undefined); setSubject(undefined); setIsActive(undefined); setPage(1); setPageSize(10); fetchQuestions()
+              }} variant="outline">重置</Button>
+            </div>
+          </div>
+
           <Table>
             <TableHeader>
               <TableRow>
@@ -238,6 +325,22 @@ export default function AdminPage() {
           {questions.length === 0 && (
             <div className="text-center py-12 text-gray-500">暂无题目，点击"新增题目"开始添加</div>
           )}
+
+          <div className="mt-6 flex items-center justify-between">
+            <div className="text-sm text-gray-600">共 {total} 条，当前第 {page} / {Math.max(1, Math.ceil(total / pageSize))} 页</div>
+            <div className="flex items-center gap-2">
+              <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(parseInt(v, 10)); setPage(1) }}>
+                <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">每页 10</SelectItem>
+                  <SelectItem value="20">每页 20</SelectItem>
+                  <SelectItem value="50">每页 50</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>上一页</Button>
+              <Button variant="outline" disabled={page >= Math.ceil(total / pageSize)} onClick={() => setPage((p) => p + 1)}>下一页</Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
