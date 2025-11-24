@@ -123,3 +123,15 @@
     @apply bg-background text-foreground;
   }
 }
+@media print {
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+  .paper-container { width: 170mm; margin: 0 auto; }
+  .break-inside-avoid { break-inside: avoid; }
+  html, body { background: white; }
+}
+
+@page {
+  size: A4;
+  margin: 25mm 20mm 25mm 20mm;
+}

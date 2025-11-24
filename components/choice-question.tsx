@@ -20,14 +20,20 @@ interface Question {
   title: string
   description?: string
   options: Option[]
+  hintEnabled?: boolean
+  hintText?: string | null
+  imageEnabled?: boolean
+  imageUrl?: string | null
+  draftEnabled?: boolean
 }
 
 interface ChoiceQuestionProps {
   question: Question
   onComplete: (isCorrect: boolean) => void
+  onSubmitAnswer?: (selectedIds: string[], isCorrect: boolean) => void
 }
 
-export function ChoiceQuestion({ question, onComplete }: ChoiceQuestionProps) {
+export function ChoiceQuestion({ question, onComplete, onSubmitAnswer }: ChoiceQuestionProps) {
   const [selectedOptions, setSelectedOptions] = useState<string[]>([])
   const [feedback, setFeedback] = useState<"correct" | "incorrect" | null>(null)
   const [submitted, setSubmitted] = useState(false)
@@ -62,6 +68,9 @@ export function ChoiceQuestion({ question, onComplete }: ChoiceQuestionProps) {
 
     setFeedback(isCorrect ? "correct" : "incorrect")
     setSubmitted(true)
+    if (onSubmitAnswer) {
+      onSubmitAnswer(selectedOptions, isCorrect)
+    }
     onComplete(isCorrect)
   }
 
