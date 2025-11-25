@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { MatchingGame } from "@/components/matching-game"
 import { PoemFill } from "@/components/poem-fill"
 import { ChoiceQuestion } from "@/components/choice-question"
+import { FillBlankQuestion } from "@/components/fill-blank-question"
 import { Button } from "@/components/ui/button"
 
 export default function Home() {
@@ -105,13 +106,15 @@ export default function Home() {
       <div className="mx-auto max-w-6xl">
         <header className="mb-8 text-center">
           <h1 className="mb-2 font-bold text-4xl text-primary md:text-5xl">
-            {currentQuestionData.type === 'matching' ? '连线游戏' : currentQuestionData.type === 'poem_fill' ? '古诗填空' : '选择题'}
+            {currentQuestionData.type === 'matching' ? '连线游戏' : currentQuestionData.type === 'poem_fill' ? '古诗填空' : currentQuestionData.type === 'fill_blank' ? '填空题' : '选择题'}
           </h1>
           <p className="text-muted-foreground text-lg">
             {currentQuestionData.type === 'matching' 
               ? '把左边和右边相关的内容连起来吧！' 
               : currentQuestionData.type === 'poem_fill' 
               ? '从下方选择字填入上面的空格，完成整首诗' 
+              : currentQuestionData.type === 'fill_blank' 
+              ? '请在空格处填入正确答案' 
               : '选择正确的答案！'}
           </p>
           <div className="mt-4 flex items-center justify-center gap-4">
@@ -131,6 +134,12 @@ export default function Home() {
         ) : currentQuestionData.type === 'poem_fill' ? (
           <PoemFill
             key={`poem-${currentQuestionData.id}-${runId}`}
+            question={currentQuestionData}
+            onComplete={handleComplete}
+          />
+        ) : currentQuestionData.type === 'fill_blank' ? (
+          <FillBlankQuestion
+            key={`fill-${currentQuestionData.id}-${runId}`}
             question={currentQuestionData}
             onComplete={handleComplete}
           />

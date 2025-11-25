@@ -17,7 +17,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const responseData: any = {
       question,
       items: [],
-      options: []
+      options: [],
+      blanks: []
     }
 
     // 根据题目类型获取不同的数据
@@ -28,13 +29,34 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         [questionId]
       )
       responseData.options = options || []
-    } else {
+    } else if (question.question_type === 'matching') {
       // 获取连线题项目
       const [items] = await pool.query(
         "SELECT * FROM question_items WHERE question_id = ? ORDER BY display_order",
         [questionId]
       )
       responseData.items = items || []
+    } else if (question.question_type === 'fill_blank') {
+      try {
+        const [blanks] = await pool.query(
+          "SELECT idx, answer_text, hint FROM blank_items WHERE question_id = ? ORDER BY idx",
+          [questionId]
+        )
+        responseData.blanks = blanks || []
+        if ((!Array.isArray(responseData.blanks) || responseData.blanks.length === 0)) {
+          const [fallback] = await pool.query(
+            "SELECT display_order as idx, content as answer_text, NULL as hint FROM question_items WHERE question_id = ? AND side = 'blank' ORDER BY display_order",
+            [questionId]
+          )
+          responseData.blanks = fallback || []
+        }
+      } catch {
+        const [fallback] = await pool.query(
+          "SELECT display_order as idx, content as answer_text, NULL as hint FROM question_items WHERE question_id = ? AND side = 'blank' ORDER BY display_order",
+          [questionId]
+        )
+        responseData.blanks = fallback || []
+      }
     }
 
     return NextResponse.json(responseData)
@@ -49,7 +71,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   try {
     const { id: questionId } = await params
     const body = await request.json()
-    const { title, description, difficulty_level, grade, subject, poem_id, hint_enabled, hint_text, image_enabled, image_url, draft_enabled, is_active, question_type, items, options } = body
+    const { title, description, difficulty_level, grade, subject, poem_id, hint_enabled, hint_text, image_enabled, image_url, draft_enabled, is_active, question_type, items, options, blanks } = body
 
     // Update question with only provided fields
     let updateFields = []
@@ -180,6 +202,30 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         }
       }
     }
+    if (blanks && blanks.length > 0) {
+      const sorted = [...blanks].sort((a: any, b: any) => (a.idx || 0) - (b.idx || 0))
+      try {
+        await pool.query("DELETE FROM blank_items WHERE question_id = ?", [questionId])
+        for (const b of sorted) {
+          await pool.query(
+            "INSERT INTO blank_items (question_id, idx, answer_text, hint) VALUES (?, ?, ?, ?)",
+            [questionId, b.idx, b.answer_text, b.hint || null]
+          )
+        }
+      } catch {
+        // fallback storage in question_items
+        await pool.query("DELETE FROM question_items WHERE question_id = ? AND side = 'blank'", [questionId])
+        for (const b of sorted) {
+          await pool.query(
+            "INSERT INTO question_items (question_id, content, side, display_order) VALUES (?, ?, 'blank', ?)",
+            [questionId, b.answer_text, b.idx]
+          )
+        }
+      }
+      if (question_type === "fill_blank") {
+        await pool.query("DELETE FROM choice_options WHERE question_id = ?", [questionId])
+      }
+    }
     
     return NextResponse.json({ success: true })
   } catch (error) {
@@ -195,6 +241,8 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
     // Delete items first (foreign key constraint)
     await pool.query("DELETE FROM question_items WHERE question_id = ?", [questionId])
+    await pool.query("DELETE FROM choice_options WHERE question_id = ?", [questionId])
+    await pool.query("DELETE FROM blank_items WHERE question_id = ?", [questionId])
 
     // Delete question
     await pool.query("DELETE FROM questions WHERE id = ?", [questionId])

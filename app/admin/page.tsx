@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Pencil, Trash2, Plus, Download } from "lucide-react"
+import { renderMathContent } from "@/components/math-formula"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
@@ -249,7 +250,9 @@ export default function AdminPage() {
                 <TableRow key={question.id}>
                   <TableCell className="font-medium">{question.id}</TableCell>
                   <TableCell>{question.title}</TableCell>
-                  <TableCell className="max-w-xs truncate">{question.description}</TableCell>
+                  <TableCell className="max-w-xs truncate text-left">
+                    {renderMathContent((question.description || "").replace(/\{_([0-9]+)\}/g, "()"), `admin-list-desc-${question.id}`, { as: "span", justify: "start" })}
+                  </TableCell>
                   <TableCell>
                     <Badge
                       variant={

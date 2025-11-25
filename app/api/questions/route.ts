@@ -90,6 +90,48 @@ export async function GET() {
               imageUrl: question.image_url || null,
               draftEnabled: !!question.draft_enabled,
             }
+          } else if (question.question_type === 'fill_blank') {
+            try {
+              const [blanks] = await connection.query(
+                `SELECT idx FROM blank_items WHERE question_id = ? ORDER BY idx`,
+                [question.id]
+              )
+              const blanksArray = blanks as any[]
+              const out = blanksArray.length ? blanksArray : (await connection.query(
+                `SELECT display_order as idx FROM question_items WHERE question_id = ? AND side = 'blank' ORDER BY display_order`,
+                [question.id]
+              ))[0] as any[]
+              return {
+                id: question.id,
+                title: question.title,
+                description: question.description,
+                type: 'fill_blank',
+                blanks: out.map((b) => ({ idx: b.idx })),
+                hintEnabled: !!question.hint_enabled,
+                hintText: question.hint_text || null,
+                imageEnabled: !!question.image_enabled,
+                imageUrl: question.image_url || null,
+                draftEnabled: !!question.draft_enabled,
+              }
+            } catch {
+              const [fallback] = await connection.query(
+                `SELECT display_order as idx FROM question_items WHERE question_id = ? AND side = 'blank' ORDER BY display_order`,
+                [question.id]
+              )
+              const out = fallback as any[]
+              return {
+                id: question.id,
+                title: question.title,
+                description: question.description,
+                type: 'fill_blank',
+                blanks: out.map((b) => ({ idx: b.idx })),
+                hintEnabled: !!question.hint_enabled,
+                hintText: question.hint_text || null,
+                imageEnabled: !!question.image_enabled,
+                imageUrl: question.image_url || null,
+                draftEnabled: !!question.draft_enabled,
+              }
+            }
           } else {
             // 处理连线题
             const [items] = await connection.query(

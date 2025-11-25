@@ -41,7 +41,8 @@ export default function AddQuestionPage() {
   const [imageEnabled, setImageEnabled] = useState(false)
   const [imageUrl, setImageUrl] = useState("")
   const [draftEnabled, setDraftEnabled] = useState(false)
-  const [questionType, setQuestionType] = useState<"matching" | "choice" | "poem_fill">("matching")
+  const [questionType, setQuestionType] = useState<"matching" | "choice" | "poem_fill" | "fill_blank">("matching")
+  const [blanks, setBlanks] = useState<Array<{ idx: number; answer_text: string; hint?: string }>>([])
   const [poems, setPoems] = useState<{ id: number; title: string; author: string; dynasty: string }[]>([])
   const [poemId, setPoemId] = useState<number | null>(null)
   const [leftItems, setLeftItems] = useState<QuestionItem[]>([{ content: "", side: "left", display_order: 1 }])
@@ -53,6 +54,8 @@ export default function AddQuestionPage() {
     { content: "", is_correct: false, display_order: 4 }
   ])
   const [previewFormula, setPreviewFormula] = useState("")
+  const [previewAnswerFill, setPreviewAnswerFill] = useState("")
+  const [previewDescriptionShell, setPreviewDescriptionShell] = useState("")
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -158,7 +161,29 @@ export default function AddQuestionPage() {
         alert("请至少选择一个正确答案")
         return
       }
-    } else {
+    } else if (questionType === "fill_blank") {
+      if (blanks.length === 0) {
+        alert("请添加至少一个空位")
+        return
+      }
+      const text = description || ""
+      const found: number[] = []
+      const re = /\{_([0-9]+)\}/g
+      let m
+      while ((m = re.exec(text)) != null) {
+        const idx = parseInt(m[1], 10)
+        if (!found.includes(idx)) found.push(idx)
+      }
+      const missing = blanks.some((b) => !found.includes(b.idx)) || found.some((i) => !blanks.some((b) => b.idx === i))
+      if (missing) {
+        alert("题干占位符与空位索引不一致，请同步空位")
+        return
+      }
+      if (blanks.some((b) => !b.answer_text)) {
+        alert("请填写所有空位答案")
+        return
+      }
+    } else if (questionType === "poem_fill") {
       if (!poemId) {
         alert("请选择古诗")
         return
@@ -220,7 +245,7 @@ export default function AddQuestionPage() {
         })
 
         if (!response.ok) throw new Error("Failed to create question")
-      } else {
+      } else if (questionType === "poem_fill") {
         if (!poemId) {
           alert("请选择古诗")
           return
@@ -237,6 +262,27 @@ export default function AddQuestionPage() {
             is_active: isActive,
             type: "poem_fill",
             poem_id: poemId,
+            hint_enabled: hintEnabled,
+            hint_text: hintText,
+            image_enabled: imageEnabled,
+            image_url: imageUrl,
+            draft_enabled: draftEnabled,
+          }),
+        })
+        if (!response.ok) throw new Error("Failed to create question")
+      } else {
+        const response = await fetch("/api/admin/questions/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title,
+            description,
+            difficulty_level: difficultyLevel,
+            grade,
+            subject,
+            is_active: isActive,
+            type: "fill_blank",
+            blanks,
             hint_enabled: hintEnabled,
             hint_text: hintText,
             image_enabled: imageEnabled,
@@ -323,10 +369,25 @@ export default function AddQuestionPage() {
                 <Textarea
                   id="description"
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="例如：把动物和它们喜欢吃的食物连起来"
+                  onChange={(e) => { 
+                    setDescription(e.target.value); 
+                    setPreviewFormula(e.target.value);
+                    if (questionType === "fill_blank") {
+                      const shell = (e.target.value || "").replace(/\{_([0-9]+)\}/g, "（）")
+                      setPreviewDescriptionShell(shell)
+                    }
+                  }}
+                  placeholder="支持数学公式：使用 \\( \\) 包裹行内、使用 \\[ \\] 包裹块级"
                   required
                 />
+                {questionType === "fill_blank" && previewDescriptionShell && (
+                  <div className="rounded-md border p-4 bg-slate-50">
+                    <p className="text-sm text-slate-500 mb-2">题干预览：</p>
+                    <div className="text-base leading-relaxed">
+                      {renderMathContent(previewDescriptionShell, "add-fill-preview")}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -351,11 +412,12 @@ export default function AddQuestionPage() {
                     <SelectTrigger>
                       <SelectValue placeholder="选择题目类型" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="matching">连线题</SelectItem>
-                      <SelectItem value="choice">选择题</SelectItem>
-                      <SelectItem value="poem_fill">古诗填空</SelectItem>
-                    </SelectContent>
+                  <SelectContent>
+                    <SelectItem value="matching">连线题</SelectItem>
+                    <SelectItem value="choice">选择题</SelectItem>
+                    <SelectItem value="poem_fill">古诗填空</SelectItem>
+                    <SelectItem value="fill_blank">填空题</SelectItem>
+                  </SelectContent>
                   </Select>
                 </div>
               </div>
@@ -482,11 +544,19 @@ export default function AddQuestionPage() {
                       <h3 className="text-lg font-medium">题目内容（支持数学公式）</h3>
                     </div>
                     <div className="space-y-2">
-                      <Textarea
-                        value={description}
-                        onChange={(e) => {
+                <Textarea
+                  value={description}
+                  onChange={(e) => {
                           setDescription(e.target.value)
                           handleFormulaPreview(e.target.value)
+                          if (questionType === "fill_blank") {
+                            const replaced = (e.target.value || "").replace(/\{_([0-9]+)\}/g, (m, p1) => {
+                              const idx = parseInt(p1, 10)
+                              const f = blanks.find((b) => b.idx === idx)
+                              return f && f.answer_text ? f.answer_text : "____"
+                            })
+                            setPreviewDescriptionFill(replaced)
+                          }
                         }}
                         placeholder="输入题目内容，使用 \( \) 包裹行内公式，使用 \[ \] 包裹块级公式"
                         className="min-h-[100px]"
@@ -495,7 +565,7 @@ export default function AddQuestionPage() {
                         <div className="rounded-md border p-4 bg-slate-50">
                           <p className="text-sm text-slate-500 mb-2">预览：</p>
                           <div className="text-base leading-relaxed">
-                            {renderMathContent(previewFormula, "add-preview")}
+                      {renderMathContent(previewFormula, "add-preview")}
                           </div>
                         </div>
                       )}
@@ -541,7 +611,7 @@ export default function AddQuestionPage() {
                     <p className="text-sm text-slate-500">点击选项前的圆圈标记为正确答案</p>
                   </div>
                 </div>
-              ) : (
+              ) : questionType === "poem_fill" ? (
                 <div className="space-y-6">
                   <div className="space-y-2">
                     <Label htmlFor="poem">选择古诗</Label>
@@ -558,7 +628,68 @@ export default function AddQuestionPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <p className="text-sm text-slate-500">提交后将生成古诗填空题，作答页面按规则展示。</p>
+                    <p className="text-sm text-slate-500">提交后将生成古诗填空题，作答页面按规则展示。</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <p className="text-sm text-slate-500">
+                      在描述中用占位符 <span className="font-mono">{'{_0}'}</span>, <span className="font-mono">{'{_1}'}</span> 标注空位。点击下方“同步空位”从题干解析索引。
+                    </p>
+                  <div className="flex gap-2">
+                      <Button type="button" onClick={() => {
+                        const text = description || ""
+                        const found: number[] = []
+                        const re = /\{_([0-9]+)\}/g
+                        let m
+                        while ((m = re.exec(text)) != null) {
+                          const idx = parseInt(m[1], 10)
+                          if (!found.includes(idx)) found.push(idx)
+                        }
+                        found.sort((a,b)=>a-b)
+                        const nextBlanks = found.map((i) => ({ idx: i, answer_text: blanks.find(b=>b.idx===i)?.answer_text || "", hint: blanks.find(b=>b.idx===i)?.hint || "" }))
+                        setBlanks(nextBlanks)
+                        const replaced = (description || "").replace(/\{_([0-9]+)\}/g, (m, p1) => {
+                          const idx = parseInt(p1, 10)
+                          const f = nextBlanks.find(b=>b.idx===idx)
+                          return f && f.answer_text ? f.answer_text : "____"
+                        })
+                        setPreviewAnswerFill(replaced)
+                      }}>同步空位</Button>
+                      <Button type="button" variant="outline" onClick={() => setBlanks([...blanks, { idx: blanks.length, answer_text: "" }])}>新增空位</Button>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {blanks.map((b, i) => (
+                      <div key={`blank-${i}`} className="grid grid-cols-6 gap-2 items-center">
+                        <Label>索引</Label>
+                        <Input value={String(b.idx)} onChange={(e)=>{
+                          const v = parseInt(e.target.value || "0", 10)
+                          const copy = [...blanks]; copy[i] = { ...copy[i], idx: v }; setBlanks(copy)
+                        }} />
+                        <Label>答案</Label>
+                        <Input className="col-span-2" value={b.answer_text} onChange={(e)=>{
+                          const copy = [...blanks]; copy[i] = { ...copy[i], answer_text: e.target.value }; setBlanks(copy)
+                          const replaced = (description || "").replace(/\{_([0-9]+)\}/g, (m, p1) => {
+                            const idx = parseInt(p1, 10)
+                            const f = copy.find(b=>b.idx===idx)
+                            return f && f.answer_text ? f.answer_text : "____"
+                          })
+                          setPreviewAnswerFill(replaced)
+                        }} />
+                        <Button type="button" variant="outline" size="sm" onClick={() => setPreviewAnswerFill(b.answer_text)}>预览公式</Button>
+                        <Button variant="ghost" size="icon" onClick={() => setBlanks(blanks.filter((_,x)=>x!==i))}><Trash2 className="w-4 h-4" /></Button>
+                      </div>
+                    ))}
+                    {questionType === "fill_blank" && previewAnswerFill && (
+                      <div className="rounded-md border p-3 bg-slate-50">
+                        <div className="mb-2 text-sm text-slate-500">答案预览：</div>
+                        <div className="text-base leading-relaxed">
+                          {renderMathContent(previewAnswerFill, "add-fill-answer-preview")}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
