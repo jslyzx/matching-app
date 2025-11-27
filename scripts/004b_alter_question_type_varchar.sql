@@ -1,0 +1,2 @@
+ALTER TABLE `questions`
+MODIFY COLUMN `question_type` VARCHAR(32) NOT NULL;

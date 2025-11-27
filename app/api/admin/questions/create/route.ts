@@ -4,7 +4,7 @@ import { pool } from "@/lib/db"
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { title, description, difficulty_level, grade, subject, is_active, items, type, options, poem_id, hint_enabled, hint_text, image_enabled, image_url, draft_enabled } = body
+    const { title, description, difficulty_level, grade, subject, is_active, items, type, options, poem_id, hint_enabled, hint_text, image_enabled, image_url, draft_enabled, blanks } = body
 
     // Insert question
     const [result] = await pool.query(
@@ -58,6 +58,24 @@ export async function POST(request: Request) {
           "INSERT INTO choice_options (question_id, content, is_correct, display_order) VALUES (?, ?, ?, ?)",
           [questionId, option.content, option.is_correct ? 1 : 0, option.display_order],
         )
+      }
+    } else if (type === 'fill_blank' && blanks && blanks.length > 0) {
+      const sorted = [...blanks].sort((a: any, b: any) => (a.idx || 0) - (b.idx || 0))
+      try {
+        for (const b of sorted) {
+          await pool.query(
+            "INSERT INTO blank_items (question_id, idx, answer_text, hint) VALUES (?, ?, ?, ?)",
+            [questionId, b.idx, b.answer_text, b.hint || null]
+          )
+        }
+      } catch (err) {
+        // fallback: store in question_items with side='blank'
+        for (const b of sorted) {
+          await pool.query(
+            "INSERT INTO question_items (question_id, content, side, display_order) VALUES (?, ?, 'blank', ?)",
+            [questionId, b.answer_text, b.idx]
+          )
+        }
       }
     }
 
