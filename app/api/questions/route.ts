@@ -93,12 +93,12 @@ export async function GET() {
           } else if (question.question_type === 'fill_blank') {
             try {
               const [blanks] = await connection.query(
-                `SELECT idx FROM blank_items WHERE question_id = ? ORDER BY idx`,
+                `SELECT idx, answer_text FROM blank_items WHERE question_id = ? ORDER BY idx`,
                 [question.id]
               )
               const blanksArray = blanks as any[]
               const out = blanksArray.length ? blanksArray : (await connection.query(
-                `SELECT display_order as idx FROM question_items WHERE question_id = ? AND side = 'blank' ORDER BY display_order`,
+                `SELECT display_order as idx, content as answer_text FROM question_items WHERE question_id = ? AND side = 'blank' ORDER BY display_order`,
                 [question.id]
               ))[0] as any[]
               return {
@@ -106,7 +106,7 @@ export async function GET() {
                 title: question.title,
                 description: question.description,
                 type: 'fill_blank',
-                blanks: out.map((b) => ({ idx: b.idx })),
+                blanks: out.map((b) => ({ idx: b.idx, answer_text: b.answer_text })),
                 hintEnabled: !!question.hint_enabled,
                 hintText: question.hint_text || null,
                 imageEnabled: !!question.image_enabled,
