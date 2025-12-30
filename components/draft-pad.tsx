@@ -940,17 +940,17 @@ export function DraftPad({ open, onClose }: DraftPadProps) {
 
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 bg-black/60">
+    <div className="fixed inset-0 z-50 bg-black/60 touch-none overscroll-none">
       <canvas
         ref={canvasRef}
-        className="absolute inset-0 z-0"
+        className="absolute inset-0 z-0 touch-none"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
       />
       <div
-        className="absolute z-10 flex items-center gap-3 rounded-2xl bg-white/90 px-3 py-2 shadow-lg backdrop-blur overflow-visible"
+        className="absolute z-10 flex items-center gap-3 rounded-2xl bg-white/90 px-3 py-2 shadow-lg backdrop-blur overflow-visible touch-none"
         style={toolbarStyle}
         onPointerDown={onToolbarPointerDown}
         onPointerMove={onToolbarPointerMove}

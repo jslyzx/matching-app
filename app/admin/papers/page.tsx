@@ -21,8 +21,8 @@ export default function AdminPapersPage() {
   }, [])
 
   return (
-    <div className="min-h-screen p-8">
-      <div className="max-w-6xl mx-auto">
+    <div className="space-y-6">
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border p-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">试卷管理</h1>
           <Button onClick={() => (window.location.href = '/admin/papers/new')}>新建试卷</Button>

@@ -118,7 +118,7 @@ export default function PoemsAdminPage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="space-y-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-2xl font-bold">古诗管理</CardTitle>
